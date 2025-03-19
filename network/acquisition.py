@@ -1,102 +1,114 @@
+import logging
+import threading
 import UnicornPy
 import numpy as np
-import socket
+# Import acquisition settings from config
+from config.config import device_id, testsignale_enabled, frame_length
 
-def main():
-    # Specifications for the data acquisition.
-    #-------------------------------------------------------------------------------------
-    TestsignaleEnabled = False
-    FrameLength = 1
-    UDP_IP = "127.0.0.1"
-    UDP_PORT = 1001
 
-    print("Unicorn Acquisition Example")
-    print("---------------------------")
-    print()
+# Global variables to manage the acquisition process
+acquisition_thread = None
+acquisition_running = False
+acquisition_lock = threading.Lock()  # Add a lock for thread safety
 
+
+def acquire_data(callback=None):  # Add a callback parameter
     try:
         # Get available devices.
-        #-------------------------------------------------------------------------------------
         deviceList = UnicornPy.GetAvailableDevices(True)
 
         if len(deviceList) <= 0 or deviceList is None:
-            raise Exception("No device available. Please pair with a Unicorn first.")
+            raise Exception(
+                "No device available. Please pair with a Unicorn first.")
 
         print("Available devices:")
         for i, device in enumerate(deviceList):
             print(f"#{i} {device}")
 
-        print()
-        deviceID = int(input("Select device by ID #"))
-        if deviceID < 0 or deviceID >= len(deviceList):
+        if device_id < 0 or device_id >= len(deviceList):
             raise IndexError('The selected device ID is not valid.')
 
         print()
-        print(f"Trying to connect to '{deviceList[deviceID]}'.")
-        device = UnicornPy.Unicorn(deviceList[deviceID])
-        print(f"Connected to '{deviceList[deviceID]}'.")
+        print(f"Trying to connect to '{deviceList[device_id]}'.")
+        device = UnicornPy.Unicorn(deviceList[device_id])
+        print(f"Connected to '{deviceList[device_id]}'.")
         print()
 
         # Initialize acquisition members.
-        #-------------------------------------------------------------------------------------
         numberOfAcquiredChannels = device.GetNumberOfAcquiredChannels()
         configuration = device.GetConfiguration()
 
         print("Acquisition Configuration:")
         print(f"Sampling Rate: {UnicornPy.SamplingRate} Hz")
-        print(f"Frame Length: {FrameLength}")
+        print(f"Frame Length: {frame_length}")
         print(f"Number Of Acquired Channels: {numberOfAcquiredChannels}")
         print()
 
         # Allocate memory for the acquisition buffer.
-        receiveBufferBufferLength = FrameLength * numberOfAcquiredChannels * 4
+        receiveBufferBufferLength = frame_length * numberOfAcquiredChannels * 4
         receiveBuffer = bytearray(receiveBufferBufferLength)
-
-        # Set up UDP socket.
-        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         try:
             # Start data acquisition.
-            #-------------------------------------------------------------------------------------
-            device.StartAcquisition(TestsignaleEnabled)
-            print("Data acquisition started. Press Ctrl+C to stop.")
-
-            consoleUpdateRate = max(1, int((UnicornPy.SamplingRate / FrameLength) / 25.0))
+            device.StartAcquisition(testsignale_enabled)
+            print("Data acquisition started.")
 
             # Continuous acquisition loop.
-            #-------------------------------------------------------------------------------------
-            while True:
-                device.GetData(FrameLength, receiveBuffer, receiveBufferBufferLength)
+            while acquisition_running:
+                device.GetData(frame_length, receiveBuffer,
+                               receiveBufferBufferLength)
 
                 # Convert receive buffer to numpy float array.
-                data = np.frombuffer(receiveBuffer, dtype=np.float32, count=numberOfAcquiredChannels * FrameLength)
-                data = np.reshape(data, (FrameLength, numberOfAcquiredChannels))
+                data = np.frombuffer(
+                    receiveBuffer, dtype=np.float32, count=numberOfAcquiredChannels * frame_length)
+                data = np.reshape(
+                    data, (frame_length, numberOfAcquiredChannels))
 
-                # Send data via UDP.
-                udp_socket.sendto(data.tobytes(), (UDP_IP, UDP_PORT))
+                if callback:
+                    callback(data)  # Pass data to the callback function
 
-                # Update console to indicate that the data acquisition is running.
-                print('.', end='', flush=True)
-
-        except KeyboardInterrupt:
-            print("\nData acquisition stopped by user.")
         except UnicornPy.DeviceException as e:
             print(e)
         except Exception as e:
             print(f"An unknown error occurred. {e}")
         finally:
             del receiveBuffer
-            udp_socket.close()
             device.StopAcquisition()
             del device
             print("Disconnected from Unicorn")
 
     except UnicornPy.DeviceException as e:
         print(e)
-    except Exception as e:
-        print(f"An unknown error occurred. {e}")
 
-    input("\n\nPress ENTER key to exit")
 
-# Execute main
-main()
+# Function to start the acquisition process
+# This function starts a background thread to acquire data from the Unicorn device.
+def start_acquisition():
+    global acquisition_thread, acquisition_running
+    with acquisition_lock:  # Use the lock to ensure thread safety
+        if not acquisition_running:
+            logging.info("Starting acquisition process")
+            acquisition_running = True
+
+            def acquisition_task():
+                acquire_data(callback=process_data)  # Pass a callback function
+
+            acquisition_thread = threading.Thread(
+                target=acquisition_task, daemon=True)
+            acquisition_thread.start()
+
+
+def process_data(data):
+    # Placeholder for processing acquired data
+    logging.info(f"Processing data: {data}")
+
+
+# Function to stop the acquisition process
+# This function stops the background thread that acquires data from the Unicorn device.
+def stop_acquisition():
+    global acquisition_running
+    if acquisition_running:
+        logging.info("Stopping acquisition process")
+        acquisition_running = False
+        if acquisition_thread:
+            acquisition_thread.join()

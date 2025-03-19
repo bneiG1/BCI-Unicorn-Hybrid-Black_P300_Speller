@@ -2,9 +2,9 @@ import socket
 import logging  # Add this import
 
 
-def send_character(character, ip, port):  # Add ip and port parameters
-    udp_ip = ip  # Use the ip parameter
-    udp_port = port  # Use the port parameter
+def send_character(character, ip, port):  # Use sender-specific IP and port
+    udp_ip = ip  # Use sender_ip
+    udp_port = port  # Use sender_port
     message = character.encode("utf-8")
 
     logging.info(f"Sending character '{character}' to {udp_ip}:{udp_port}")
