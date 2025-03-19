@@ -1,0 +1,54 @@
+{
+  "timings": {
+    "cooldown": 3000,
+    "times_flashing": 15
+  },
+  "network": {
+    "udp": {
+      "ip": "127.0.0.1",
+      "port": 8000
+    },
+    "tcp": {
+      "ip": "127.0.0.1",
+      "port": 8001
+    }
+  },
+  "boards": [
+    {
+      "qwerty_6x6": [
+        "123456",
+        "7890QW",
+        "ERTYUI",
+        "OPASDF",
+        "GHJKLZ",
+        "XCVBNM"
+      ]
+    },
+    {
+      "alphabetical_6x6": [
+        "123456",
+        "7890AB",
+        "CDEFGH",
+        "IJKLMN",
+        "OPQRST",
+        "UVWXYZ"
+      ]
+    },
+    {
+      "qwerty": [
+        "1234567890",
+        "QWERTYUIOP",
+        "ASDFGHJKL",
+        "ZXCVBNM"
+      ]
+    },
+    {
+      "alphabetical": [
+        "1234567890",
+        "ABCDEFGHIJ",
+        "KLMNOPQRST",
+        "UVWXYZ"
+      ]
+    }
+  ]
+}
