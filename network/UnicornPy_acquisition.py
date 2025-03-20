@@ -39,10 +39,16 @@ def acquire_data(callback=None):  # Add a callback parameter
         numberOfAcquiredChannels = device.GetNumberOfAcquiredChannels()
         configuration = device.GetConfiguration()
 
+            # Get indices of EEG channels
+        # eeg_channel_indices = [
+        #     device.GetChannelIndex(f"EEG {i+1}") for i in range(UnicornPy.EEGChannelsCount)
+        # ]
+
         print("Acquisition Configuration:")
         print(f"Sampling Rate: {UnicornPy.SamplingRate} Hz")
         print(f"Frame Length: {frame_length}")
         print(f"Number Of Acquired Channels: {numberOfAcquiredChannels}")
+        # print(f"EEG Channel Indices: {eeg_channel_indices}")
         print()
 
         # Allocate memory for the acquisition buffer.
@@ -64,6 +70,9 @@ def acquire_data(callback=None):  # Add a callback parameter
                     receiveBuffer, dtype=np.float32, count=numberOfAcquiredChannels * frame_length)
                 data = np.reshape(
                     data, (frame_length, numberOfAcquiredChannels))
+                
+                                # Extract only EEG channel data
+                # eeg_data = data[:, eeg_channel_indices]
 
                 if callback:
                     callback(data)  # Pass data to the callback function
