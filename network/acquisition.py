@@ -3,7 +3,8 @@ import threading
 import UnicornPy
 import numpy as np
 # Import acquisition settings from config
-from config.config import device_id, testsignale_enabled, frame_length
+from config.config import source, udp_acquisition_port, udp_acquisition_ip,device_id, testsignale_enabled, frame_length
+from network.udp_listener import listen_for_character
 
 
 # Global variables to manage the acquisition process
@@ -84,18 +85,28 @@ def acquire_data(callback=None):  # Add a callback parameter
 # Function to start the acquisition process
 # This function starts a background thread to acquire data from the Unicorn device.
 def start_acquisition():
-    global acquisition_thread, acquisition_running
-    with acquisition_lock:  # Use the lock to ensure thread safety
-        if not acquisition_running:
-            logging.info("Starting acquisition process")
-            acquisition_running = True
+    if source == "internal":
+        global acquisition_thread, acquisition_running
+        with acquisition_lock:  # Use the lock to ensure thread safety
+            if not acquisition_running:
+                logging.info("Starting acquisition process")
+                acquisition_running = True
 
-            def acquisition_task():
-                acquire_data(callback=process_data)  # Pass a callback function
+                def acquisition_task():
+                    acquire_data(callback=process_data)  # Pass a callback function
 
-            acquisition_thread = threading.Thread(
-                target=acquisition_task, daemon=True)
-            acquisition_thread.start()
+                acquisition_thread = threading.Thread(
+                    target=acquisition_task, daemon=True)
+                acquisition_thread.start()
+    elif source == "external":
+        listener_thread = threading.Thread(
+            target=listen_for_character, args=(
+                udp_acquisition_ip, udp_acquisition_port), daemon=True
+        )
+        listener_thread.start()  # Use external UDP listener
+    else:
+        logging.error(
+            "Invalid source configuration. Must be 'internal' or 'external'.")
 
 
 def process_data(data):

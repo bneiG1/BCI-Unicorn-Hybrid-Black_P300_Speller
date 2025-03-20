@@ -7,8 +7,8 @@
     "udp": {
       "sender_ip": "127.0.0.1",
       "sender_port": 8000,
-      "acquisition_ip": "127.0.0.1",
-      "acquisition_port": 8002
+      "acquisition_ip": "0.0.0.0",
+      "acquisition_port": 1001
     },
     "tcp": {
       "ip": "127.0.0.1",
@@ -54,8 +54,9 @@
     }
   ],
   "acquisition": {
-    "TestsignaleEnabled": false,
-    "FrameLength": 1,
-    "DeviceID": 0
+    "source":"internal",
+    "testsignale_enabled": false,
+    "frame_length": 1,
+    "device_id": 0
   }
 }

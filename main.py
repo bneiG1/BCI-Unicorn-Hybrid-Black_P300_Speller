@@ -1,8 +1,11 @@
 import tkinter as tk
 from app.speller import update_layout, stop_flashing
 import logging
-from config.config import tcp_port, tcp_ip, udp_sender_port, udp_sender_ip, times_flashing, cooldown, qwerty, alphabetical, qwerty_6x6, alphabetical_6x6
-from network.acquisition import start_acquisition  # Import start_acquisition
+from config.config import  tcp_port, tcp_ip, udp_sender_port, udp_sender_ip, times_flashing, cooldown, qwerty, alphabetical, qwerty_6x6, alphabetical_6x6, source  # Import source configuration
+# Import acquisition controls
+from network.acquisition import start_acquisition, stop_acquisition
+from network.udp_listener import listen_for_character  # Import UDP listener
+import threading  # For running UDP listener in a separate thread
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +26,25 @@ def get_layout_order(layout):
         return alphabetical_6x6
 
 # Helper function to update layout with current settings
+
+
+def update_initial_layout():
+    update_layout(
+        get_layout_order(layout_var.get()),
+        frame,
+        layout_var,
+        flashing_var,
+        selected_text,
+        root,
+        cooldown,
+        times_flashing,
+        udp_sender_ip,
+        udp_sender_port,
+        tcp_ip,
+        tcp_port,
+        protocol_var.get(),
+        False
+    )
 
 
 def update_current_layout():
@@ -103,7 +125,8 @@ start_button = tk.Button(
     control_frame,
     text="Start",
     font=("Courier", 20),
-    command=update_current_layout,
+    # Start data source and update layout
+    command=lambda: [start_acquisition(), update_current_layout()],
 )
 start_button.pack(side=tk.LEFT, padx=20)
 
@@ -112,7 +135,8 @@ stop_button = tk.Button(
     control_frame,
     text="Stop",
     font=("Courier", 20),
-    command=lambda: stop_flashing(frame),
+    # Stop flashing and pause acquisition
+    command=lambda: [stop_flashing(frame), stop_acquisition()],
 )
 stop_button.pack(side=tk.LEFT, padx=20)
 
@@ -122,10 +146,7 @@ selected_text = tk.Text(root, height=1, font=(
 selected_text.grid(row=2, column=0, pady=10, sticky="ew")
 
 # Set the initial layout
-update_current_layout()
-
-# Start the acquisition process
-start_acquisition()
+update_initial_layout()
 
 # Run the application
 root.mainloop()
