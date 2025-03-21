@@ -1,7 +1,7 @@
 {
   "timings": {
     "cooldown": 3000,
-    "times_flashing": 15
+    "times_flashing": 30
   },
   "network": {
     "udp": {

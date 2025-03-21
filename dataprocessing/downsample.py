@@ -9,7 +9,7 @@ def main():
 
     # use synthetic board for demo
     params = BrainFlowInputParams()
-    board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
+    board = BoardShim(BoardIds.UNICORN_BOARD.value, params)
     board.prepare_session()
     board.start_stream()
     BoardShim.log_message(LogLevels.LEVEL_INFO.value, 'start sleeping in the main thread')
@@ -18,7 +18,7 @@ def main():
     board.stop_stream()
     board.release_session()
 
-    eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value)
+    eeg_channels = BoardShim.get_eeg_channels(BoardIds.UNICORN_BOARD.value)
     # demo for downsampling, it just aggregates data
     for count, channel in enumerate(eeg_channels):
         print('Original data for channel %d:' % channel)

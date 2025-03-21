@@ -3,7 +3,7 @@ from interface.speller import update_layout, stop_flashing
 import logging
 from config.config import  tcp_port, tcp_ip, udp_sender_port, udp_sender_ip, times_flashing, cooldown, qwerty, alphabetical, qwerty_6x6, alphabetical_6x6, source  # Import source configuration
 # Import acquisition controls
-from network.UnicornPy_acquisition import start_acquisition, stop_acquisition
+from acquisition.UnicornPy_acquisition import start_acquisition, stop_acquisition
 from network.udp_listener import listen_for_character  # Import UDP listener
 import threading  # For running UDP listener in a separate thread
 

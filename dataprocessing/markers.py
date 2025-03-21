@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--other-info', type=str, help='other info', required=False, default='')
     parser.add_argument('--serial-number', type=str, help='serial number', required=False, default='')
     parser.add_argument('--board-id', type=int, help='board id, check docs to get a list of supported boards',
-                        required=True)
+                        required=False, default=BoardIds.UNICORN_BOARD)
     parser.add_argument('--file', type=str, help='file', required=False, default='')
     parser.add_argument('--master-board', type=int, help='master board id for streaming and playback boards',
                         required=False, default=BoardIds.NO_BOARD)
@@ -41,7 +41,7 @@ def main():
     params.master_board = args.master_board
     params.preset = args.preset
 
-    board = BoardShim(args.board_id, params)
+    board = BoardShim(BoardIds.UNICORN_BOARD, params)
     board.prepare_session()
 
     board.start_stream()

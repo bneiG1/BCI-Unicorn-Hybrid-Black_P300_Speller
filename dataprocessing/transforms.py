@@ -9,7 +9,7 @@ def main():
 
     # use synthetic board for demo
     params = BrainFlowInputParams()
-    board_id = BoardIds.SYNTHETIC_BOARD.value
+    board_id = BoardIds.UNICORN_BOARD.value
     sampling_rate = BoardShim.get_sampling_rate(board_id)
     board = BoardShim(board_id, params)
     board.prepare_session()

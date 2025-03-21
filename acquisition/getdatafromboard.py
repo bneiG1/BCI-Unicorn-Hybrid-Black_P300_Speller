@@ -11,17 +11,24 @@ def main():
     # use docs to check which parameters are required for specific board, e.g. for Cyton - set serial port
     parser.add_argument('--timeout', type=int, help='timeout for device discovery or connection', required=False,
                         default=0)
-    parser.add_argument('--ip-port', type=int, help='ip port', required=False, default=0)
+    parser.add_argument('--ip-port', type=int,
+                        help='ip port', required=False, default=0)
     parser.add_argument('--ip-protocol', type=int, help='ip protocol, check IpProtocolType enum', required=False,
                         default=0)
-    parser.add_argument('--ip-address', type=str, help='ip address', required=False, default='')
-    parser.add_argument('--serial-port', type=str, help='serial port', required=False, default='')
-    parser.add_argument('--mac-address', type=str, help='mac address', required=False, default='')
-    parser.add_argument('--other-info', type=str, help='other info', required=False, default='')
-    parser.add_argument('--serial-number', type=str, help='serial number', required=False, default='')
+    parser.add_argument('--ip-address', type=str,
+                        help='ip address', required=False, default='')
+    parser.add_argument('--serial-port', type=str,
+                        help='serial port', required=False, default='')
+    parser.add_argument('--mac-address', type=str,
+                        help='mac address', required=False, default='')
+    parser.add_argument('--other-info', type=str,
+                        help='other info', required=False, default='')
+    parser.add_argument('--serial-number', type=str,
+                        help='serial number', required=False, default='')
     parser.add_argument('--board-id', type=int, help='board id, check docs to get a list of supported boards',
-                        required=True)
-    parser.add_argument('--file', type=str, help='file', required=False, default='')
+                        required=False, default=BoardIds.UNICORN_BOARD)
+    parser.add_argument('--file', type=str, help='file',
+                        required=False, default='')
     parser.add_argument('--master-board', type=int, help='master board id for streaming and playback boards',
                         required=False, default=BoardIds.NO_BOARD)
     args = parser.parse_args()
@@ -38,9 +45,9 @@ def main():
     params.file = args.file
     params.master_board = args.master_board
 
-    board = BoardShim(args.board_id, params)
+    board = BoardShim(BoardIds.UNICORN_BOARD, params)
     board.prepare_session()
-    board.start_stream ()
+    board.start_stream()
     time.sleep(10)
     # data = board.get_current_board_data (256) # get latest 256 packages or less, doesnt remove them from internal buffer
     data = board.get_board_data()  # get all data and remove it from internal buffer

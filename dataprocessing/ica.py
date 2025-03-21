@@ -10,7 +10,7 @@ from brainflow.data_filter import DataFilter
 
 
 def main():
-    board_id = BoardIds.SYNTHETIC_BOARD
+    board_id = BoardIds.UNICORN_BOARD
     eeg_channels = BoardShim.get_eeg_channels(board_id)
 
     params = BrainFlowInputParams()

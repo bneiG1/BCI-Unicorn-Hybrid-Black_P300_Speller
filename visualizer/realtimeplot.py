@@ -76,7 +76,7 @@ def main():
     parser.add_argument('--streamer-params', type=str, help='streamer params', required=False, default='')
     parser.add_argument('--serial-number', type=str, help='serial number', required=False, default='')
     parser.add_argument('--board-id', type=int, help='board id, check docs to get a list of supported boards',
-                        required=False, default=BoardIds.SYNTHETIC_BOARD)
+                        required=False, default=BoardIds.UNICORN_BOARD)
     parser.add_argument('--file', type=str, help='file', required=False, default='')
     parser.add_argument('--master-board', type=int, help='master board id for streaming and playback boards',
                         required=False, default=BoardIds.NO_BOARD)
