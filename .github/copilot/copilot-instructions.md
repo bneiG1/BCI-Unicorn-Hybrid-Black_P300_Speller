@@ -1,123 +1,93 @@
 # GitHub Copilot Instructions
 
-This is a Brain-Computer Interface (BCI) project utilizing the Unicorn Hybrid Black device for P300 Speller implementation. The system detects P300 event-related potentials when a user focuses on specific characters displayed on a screen, enabling text input through brainwave analysis.
+I want to build a real-time P300 speller BCI that connects to the Unicorn Hybrid Black device via Brainflow. The system should detect P300 event-related potentials when a user focuses on specific characters displayed on a screen. Help me implement this BCI application with robust signal processing and classification techniques.
 
 ## Core Functionality
-- P300 detection in the 250-500ms post-stimulus window
-- Real-time EEG signal processing and classification
-- Visual matrix display interface for character selection
-- Robust artifact removal and signal quality verification
-- High-accuracy classification of target vs. non-target stimuli
 
-## Project Structure
-- `acquisition/`: Handle data acquisition from Unicorn Hybrid Black device
-- `config/`: Configuration settings and parameters
-- `dataprocessing/`: Signal processing, filtering, and feature extraction
-- `interface/`: P300 Speller user interface
-- `models/`: Neural network models (P3CNET and BCIAUT)
-- `network/`: Network communication (TCP/UDP/LSL protocols)
-- `visualizer/`: Real-time signal visualization
+### Data Acquisition and Preprocessing
+
+- Help me implement functions to load EEG datasets
+- Create preprocessing pipeline including:
+- Artifact removal using Independent Component Analysis (ICA)
+- Band-pass filtering (0.1-30Hz range) using elliptic filters
+- Epoch segmentation around stimulus events
+- Baseline correction
+
+Implement channel selection algorithms to reduce computational complexity
 
 ## Key Considerations
 
-### 1. Signal Processing Pipeline
-- Processing order: filtering → artifact removal → downsampling → feature extraction
-- Preprocessing requirements:
-  - Band-pass filtering (0.1-30Hz range) using elliptic filters
-  - Notch filter at 50/60Hz for power line noise
-  - Independent Component Analysis (ICA) for artifact removal
-  - Epoch segmentation around stimulus events
-  - Baseline correction
-- Feature extraction methods:
-  - Time-domain: statistical features, Shannon Entropy, Logarithmic Band Power
-  - Frequency-domain: Discrete Wavelet Transform, power spectral analysis
-  - Time-frequency: Short-time Fourier Transform, Wavelet Transform
-  - Spatial: Common Spatial Patterns (CSP)
-- Preserve EEG data quality and avoid introducing artifacts
+### Feature Extraction
 
-### 2. P300 Detection and Classification
-- Temporal characteristics:
-  - Focus on 250-500ms post-stimulus window
-  - Proper epoch segmentation around stimulus markers
-- Classification models:
-  - Linear Discriminant Analysis (LDA) for binary classification
+- Implement time-domain feature extraction methods:
+  - Statistical features (mean, standard deviation, variance, kurtosis)
+  - Shannon Entropy (SE)
+  - Logarithmic Band Power (LBP)
+
+- Implement frequency-domain feature extraction:
+  - Discrete Wavelet Transform (DWT) to decompose signals into sub-bands (delta, theta, alpha, beta, gamma)
+  - Power spectral analysis for frequency content distribution
+
+- Implement time-frequency domain methods:
+  - Short-time Fourier Transform (STFT)
+  - Wavelet Transform for transient feature capture
+  - Implement Common Spatial Patterns (CSP) algorithm for spatial filtering
+
+## Classification Models
+
+- Implement multiple classification algorithms:
+  - Linear Discriminant Analysis (LDA) for binary classification of target vs. non-target stimuli
   - Support Vector Machine (SVM)
+  - k-Nearest Neighbor (KNN)
   - Artificial Neural Networks (ANN)
-  - 1D Convolutional Neural Network (CNN)
-- Model validation:
-  - 5-fold cross-validation for robustness
-  - Performance metrics: accuracy, information transfer rate, precision, recall, F1-score
-- Visualization tools:
-  - Averaged epochs for target vs. non-target stimuli
-  - Topographical maps of P300 responses
-  - Confusion matrices for classification results
+  - 1D Convolutional Neural Network (CNN) architecture
+- Include cross-validation (5-fold) to ensure model robustness
+  
+## P300 Speller Interface
 
-### 3. Real-time Processing
-- Optimize for real-time performance
-- Minimize processing latency
-- Use efficient data structures and algorithms
+- Create a visual matrix display (typically 6x6) with letters and numbers
+- Implement row/column flashing paradigm with randomized sequences
+- Design the prediction algorithm:
+  - Sort outputs according to row/column enumeration
+  - Find highest values for rows and columns
+  - Round highest values to 1 and others to 0
+  - Determine letter prediction by intersecting the identified row and column
+- For multiple epochs, implement averaging of predictions before final decision
 
-### 4. Code Style Guidelines
-- Use clear variable names related to BCI/EEG domain
-- Document signal processing parameters
-- Include units in variable names where applicable (e.g., sampling_rate_hz)
-- Add docstrings explaining signal processing steps
-- Include validation checks for data dimensions and types
+## Evaluation and Visualization
 
-### 5. Safety and Error Handling
-- Validate device connections
-- Handle data acquisition errors gracefully
-- Implement proper cleanup of device resources
-- Verify signal quality metrics
+- Implement performance metrics:
+  - Classification accuracy
+  - Information transfer rate
+  - Precision, recall, and F1-score
 
-### 6. Dependencies and Technical Requirements
-- Core libraries:
+- Create visualization tools:
+  - Plot averaged epochs for target vs. non-target stimuli
+  - Generate topographical maps of P300 responses
+  - Display confusion matrices for classification results
+
+## Technical Requirements
+
+- Use Python as the primary programming language
+- Utilize libraries:
   - MNE-Python for EEG data handling and preprocessing
   - NumPy and SciPy for numerical operations
   - scikit-learn for machine learning algorithms
   - TensorFlow or PyTorch for deep learning models
-  - PyQt5 for user interface
   - Matplotlib and Seaborn for visualizations
-- Maintain compatibility with Unicorn Hybrid Black SDK
-- Ensure cross-platform compatibility
-- Support for real-time data streaming and processing
 
-### 7. Performance Optimization and Implementation
-- Performance considerations:
-  - Profile memory usage with large EEG datasets
-  - Optimize matrix operations for real-time processing
-  - Cache computed features when possible
-  - Use vectorized operations where applicable
-  - Minimize processing latency for real-time feedback
-- Implementation approach:
-  - Start with basic LDA classification implementation
-  - Gradually incorporate advanced features and methods
-  - Optimize the system for real-time performance
-  - Include comprehensive documentation
-  - Create unit tests for critical components
-- Optimization metrics:
-  - Processing latency
-  - Memory usage
-  - Classification accuracy
-  - Information transfer rate (ITR)
-  - System responsiveness
+## Implementation Approach
 
-## Best Practices
-1. Always validate input data dimensions and types
-2. Document units and coordinate systems
-3. Include error bounds for signal processing operations
-4. Maintain consistent sampling rate throughout processing
-5. Log important signal processing steps and parameters
-6. Follow MNE-Python conventions for EEG data handling
+- Start by implementing a basic version with LDA classification
+- Gradually incorporate more advanced features and classification methods
+- Optimize the system for real-time performance
+- Include comprehensive documentation and code comments
+- Create unit tests for critical components
 
-## Common Patterns
-- Use decorator pattern for signal processing pipeline
-- Observer pattern for real-time data updates
-- Factory pattern for different processing strategies
-- Strategy pattern for different classification approaches
+## Specific Code Assistance
 
-## Testing Guidelines
-- Test signal processing with known waveforms
-- Validate P300 detection with benchmark datasets
-- Include unit tests for critical signal processing functions
-- Test real-time performance with simulated data streams
+- Help me implement efficient signal processing algorithms
+- Suggest optimal hyperparameters for classification models
+- Provide code for handling real-time EEG data streams
+- Assist with debugging signal processing and classification issues
+- Optimize code for better performance and reduced latency
