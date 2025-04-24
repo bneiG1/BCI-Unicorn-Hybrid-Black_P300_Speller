@@ -78,24 +78,10 @@ def classify_and_feedback(board, gui, pipeline, clf):
                     feats = extract_features([epoch_proc], DOWNSAMPLED_FREQ)
                     pred = clf.predict(feats)[0]
                     btn = gui.buttons[stim_idx // gui.cols][stim_idx % gui.cols]
-                    # --- Feedback mode integration ---
-                    feedback_mode = gui.get_feedback_mode()
                     if pred == 1:
-                        if feedback_mode == 'color':
-                            btn.setStyleSheet('background-color: green;')
-                        elif feedback_mode == 'border':
-                            btn.setStyleSheet('border: 3px solid green;')
-                        # Add sound or other feedback as needed
+                        btn.setStyleSheet('background-color: green;')
                     else:
-                        if feedback_mode == 'color':
-                            btn.setStyleSheet('background-color: red;')
-                        elif feedback_mode == 'border':
-                            btn.setStyleSheet('border: 3px solid red;')
-                    # --- Hybrid P300+SSVEP integration (placeholder) ---
-                    if gui.is_hybrid_mode():
-                        # Here you would call SSVEP detection/classification and combine with P300
-                        # For now, just log the mode
-                        logging.info(f"Hybrid P300+SSVEP mode active for stimulus {stim}")
+                        btn.setStyleSheet('background-color: red;')
                     app.processEvents()
                 except Exception as e:
                     logging.error(f"Signal processing/classification error for stimulus {stim}: {e}")

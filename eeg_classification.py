@@ -81,7 +81,34 @@ def train_evaluate_cnn(X, y, trial_time, epochs=20, batch_size=16):
 
 # Example usage (replace with your data loading)
 if __name__ == "__main__":
-    # X: features, y: labels (0=non-target, 1=target), trial_time: seconds per trial
-    # X, y = ...
-    # trial_time = ...
-    print("Replace this section with your data loading and call the train_evaluate_* functions.")
+    # Example: Generate synthetic data for demonstration
+    n_epochs = 20
+    n_channels = 8
+    n_samples = 128
+    trial_time = 1.0  # seconds per trial
+    np.random.seed(42)
+    # Simulate two classes: target (sinusoid), non-target (noise)
+    t = np.arange(n_samples) / n_samples
+    X = []
+    y = []
+    for i in range(n_epochs):
+        if i % 2 == 0:
+            # Target: sinusoid + noise
+            epoch = 5 * np.sin(2 * np.pi * 10 * t) + np.random.randn(n_channels, n_samples)
+            label = 1
+        else:
+            # Non-target: noise
+            epoch = np.random.randn(n_channels, n_samples)
+            label = 0
+        X.append(epoch)
+        y.append(label)
+    X = np.stack(X, axis=0)
+    y = np.array(y)
+    # Flatten for sklearn (n_epochs, n_channels * n_samples)
+    X_flat = X.reshape((n_epochs, -1))
+    print("\n--- LDA Classifier ---")
+    train_evaluate_lda(X_flat, y, trial_time)
+    print("\n--- SVM Classifier ---")
+    train_evaluate_svm(X_flat, y, trial_time)
+    print("\n--- 1D CNN Classifier ---")
+    train_evaluate_cnn(X_flat, y, trial_time, epochs=5, batch_size=4)
