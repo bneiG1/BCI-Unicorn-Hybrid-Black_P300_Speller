@@ -2,8 +2,12 @@
 
 ## High-Level System Diagram
 
+<!--
+If your Markdown renderer does not support Mermaid diagrams, view this diagram as a code block or use an online Mermaid live editor (https://mermaid-js.github.io/mermaid-live-editor/).
+-->
+
 ```mermaid
-graph TD
+flowchart TD
     A[EEG Device (Unicorn Hybrid Black)] -->|Raw EEG| B[unicorn_connect.py]
     B -->|EEG Stream| C[eeg_preprocessing.py]
     C -->|Cleaned/epoched EEG| D[eeg_features.py]
