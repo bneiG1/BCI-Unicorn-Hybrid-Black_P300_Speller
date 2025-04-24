@@ -2,22 +2,6 @@
 
 ## High-Level System Diagram
 
-<!--
-If your Markdown renderer does not support Mermaid diagrams, view this diagram as a code block or use an online Mermaid live editor (https://mermaid-js.github.io/mermaid-live-editor/).
--->
-
-```mermaid
-flowchart TD
-    A[EEG Device (Unicorn Hybrid Black)] -->|Raw EEG| B[unicorn_connect.py]
-    B -->|EEG Stream| C[eeg_preprocessing.py]
-    C -->|Cleaned/epoched EEG| D[eeg_features.py]
-    D -->|Feature Vectors| E[eeg_classification.py]
-    E -->|Trained Model| F[realtime_bci.py]
-    F -->|Predictions/Feedback| G[p300_speller_gui.py]
-    G -->|Stimulus Log| F
-    F -->|Performance/Results| H[eeg_visualization.py]
-```
-
 - **unicorn_connect.py**: Handles device connection and streaming.
 - **eeg_preprocessing.py**: Cleans, filters, and epochs EEG data.
 - **eeg_features.py**: Extracts features from each epoch.
