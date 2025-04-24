@@ -4,7 +4,7 @@ setup(
     name="bci_p300_speller",
     version="0.1.0",
     description="Real-time P300 Speller BCI system for Unicorn Hybrid Black EEG device.",
-    author="Your Name",
+    author="Goga Iosif-Beniamin",
     packages=find_packages(),
     install_requires=[
         "numpy",

@@ -114,7 +114,6 @@ class P300SpellerGUI(QWidget):
         main_layout = QVBoxLayout()
         from PyQt5.QtWidgets import QMenuBar, QMenu, QAction, QWidgetAction, QWidget
         menubar = QMenuBar(self)
-        # Only add menus for options not in dialog (none for now)
         main_layout.setMenuBar(menubar)
         # Board/grid area with black background
         board_widget = QWidget(self)
@@ -134,8 +133,11 @@ class P300SpellerGUI(QWidget):
         board_widget.setLayout(self.grid)
         main_layout.addWidget(board_widget)
         self.board_widget = board_widget  # Store reference for resizeEvent
-        # Start, Stop, and Options buttons
+        # Start, Stop, Options, and Connect buttons
         controls = QHBoxLayout()
+        self.connect_btn = QPushButton('Connect')
+        self.connect_btn.clicked.connect(self.connect_headset)
+        controls.addWidget(self.connect_btn)
         self.start_btn = QPushButton('Start Flashing')
         self.start_btn.clicked.connect(self.start_flashing)
         controls.addWidget(self.start_btn)
@@ -151,6 +153,18 @@ class P300SpellerGUI(QWidget):
         # Set default feedback and hybrid mode
         self.feedback_mode = 'color'
         self.hybrid_mode = 'off'
+        self.board = None  # Will hold the headset connection
+
+    def connect_headset(self):
+        try:
+            from acquisition.unicorn_connect import connect_to_unicorn
+            self.board = connect_to_unicorn()
+            if self.board:
+                QMessageBox.information(self, 'Connection', 'Successfully connected to the headset!')
+            else:
+                QMessageBox.critical(self, 'Connection', 'Failed to connect to the headset.')
+        except Exception as e:
+            QMessageBox.critical(self, 'Connection', f'Error connecting to headset: {e}')
 
     def open_options_dialog(self):
         dlg = OptionsDialog(self, self.rows, self.flash_duration, self.isi, self.flash_mode, getattr(self, 'feedback_mode', 'color'), getattr(self, 'hybrid_mode', 'off'), self.n_flashes, self.target_text, self.pause_between_chars)
@@ -225,7 +239,8 @@ class P300SpellerGUI(QWidget):
                 if self.target_char_idx < len(self.target_text):
                     self.prepare_target_flash_sequence()
                     self.flash_idx = 0
-                    QTimer.singleShot(self.pause_between_chars, lambda: self.timer.start(self.isi))
+                    # Only schedule the pause, do not start the timer
+                    QTimer.singleShot(self.pause_between_chars, self.flash_next)
                     return
                 else:
                     self.unflash(keep_target=False)
@@ -252,7 +267,14 @@ class P300SpellerGUI(QWidget):
         self.stim_log.append((timestamp, stim_type, idx))
         QTimer.singleShot(self.flash_duration, lambda: self.unflash(keep_target=bool(self.target_text.strip())))
         self.flash_idx += 1
-        self.timer.start(self.flash_duration + self.isi)
+        # Only start the timer if not at the end of the current character's sequence
+        if self.target_text.strip():
+            if self.flash_idx < len(self.flash_sequence):
+                self.timer.start(self.flash_duration + self.isi)
+            # If this was the last flash, do not start the timer; the pause will be handled by QTimer.singleShot above
+        else:
+            if self.flash_idx < len(self.flash_sequence):
+                self.timer.start(self.flash_duration + self.isi)
 
     def highlight_target_character(self):
         # Draw a red circle around the current target character

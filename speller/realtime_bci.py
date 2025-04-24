@@ -3,7 +3,7 @@ import sys
 import time
 import numpy as np
 from PyQt5.QtWidgets import QApplication
-from unicorn_connect import connect_to_unicorn, start_streaming, stop_streaming, release_resources
+from acquisition.unicorn_connect import connect_to_unicorn, start_streaming, stop_streaming, release_resources
 from p300_speller_gui import P300SpellerGUI
 from eeg_preprocessing import EEGPreprocessingPipeline
 from eeg_features import extract_features
