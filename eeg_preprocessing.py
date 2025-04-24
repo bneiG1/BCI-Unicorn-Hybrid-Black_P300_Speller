@@ -48,7 +48,7 @@ class EEGPreprocessingPipeline:
         logging.info(f"Downsampling: {self.sampling_rate_Hz} Hz -> {self.downsample_to_Hz} Hz")
         return downsampled
 
-    def run_ica(self, eeg_data_uV: np.ndarray, channel_names: list) -> np.ndarray:
+    def run_ica(self, eeg_data_uV: np.ndarray, channel_names: list[str]) -> np.ndarray:
         """Run ICA for artifact removal (channels x samples)."""
         info = mne.create_info(ch_names=channel_names, sfreq=self.downsample_to_Hz, ch_types='eeg')
         raw = mne.io.RawArray(eeg_data_uV, info)
@@ -58,7 +58,14 @@ class EEGPreprocessingPipeline:
         logging.info(f"ICA: n_components={self.ica_n_components}")
         return raw_ica.get_data()
 
-    def epoch_data(self, eeg_data_uV: np.ndarray, events: list, epoch_start_s: float, epoch_end_s: float, channel_names: list) -> mne.Epochs:
+    def epoch_data(
+        self,
+        eeg_data_uV: np.ndarray,
+        events: list[tuple[int, int]],
+        epoch_start_s: float,
+        epoch_end_s: float,
+        channel_names: list[str]
+    ) -> mne.Epochs:
         """
         Segment continuous EEG into epochs around events.
         Args:
@@ -77,7 +84,7 @@ class EEGPreprocessingPipeline:
         logging.info(f"Epoching: tmin={epoch_start_s}s, tmax={epoch_end_s}s, n_epochs={len(epochs)}")
         return epochs
 
-    def baseline_correct(self, epochs: mne.Epochs, baseline_window_s=(None, 0)) -> mne.Epochs:
+    def baseline_correct(self, epochs: mne.Epochs, baseline_window_s: tuple = (None, 0)) -> mne.Epochs:
         """Apply baseline correction to epochs."""
         epochs.apply_baseline(baseline_window_s)
         logging.info(f"Baseline correction: interval={baseline_window_s}")

@@ -1,59 +1,204 @@
 # BCI-Unicorn-Hybrid-Black_P300_Speller
 
-## Project Overview
-This project implements a real-time P300 Speller BCI system using the Unicorn Hybrid Black EEG device. It includes signal acquisition, preprocessing, feature extraction, classification, and a PyQt5-based GUI for stimulus presentation and feedback.
+## High-Level System Diagram
 
-## Dependencies
-- Python 3.8+
-- numpy
-- scipy
-- mne
-- scikit-learn
-- pywt (PyWavelets)
-- matplotlib
-- seaborn
-- PyQt5
-- joblib
-
-## Installation (Windows, PowerShell)
-```pwsh
-python -m pip install numpy scipy mne scikit-learn PyWavelets matplotlib seaborn pyqt5 joblib
+```mermaid
+graph TD
+    A[EEG Device (Unicorn Hybrid Black)] -->|Raw EEG| B[unicorn_connect.py]
+    B -->|EEG Stream| C[eeg_preprocessing.py]
+    C -->|Cleaned/epoched EEG| D[eeg_features.py]
+    D -->|Feature Vectors| E[eeg_classification.py]
+    E -->|Trained Model| F[realtime_bci.py]
+    F -->|Predictions/Feedback| G[p300_speller_gui.py]
+    G -->|Stimulus Log| F
+    F -->|Performance/Results| H[eeg_visualization.py]
 ```
 
-## Project Structure
-- `eeg_preprocessing.py`: Modular EEG preprocessing pipeline (filtering, downsampling, ICA, epoching, baseline correction)
-- `eeg_features.py`: Feature extraction (time, frequency, time-frequency, spatial)
-- `eeg_classification.py`: Model training, evaluation, and cross-validation
-- `eeg_visualization.py`: ERP, topomap, and confusion matrix plotting
-- `p300_speller_gui.py`: PyQt5 GUI for P300 speller matrix and stimulus logging
-- `unicorn_connect.py`: Device discovery, connection, and streaming for Unicorn Hybrid Black
-- `realtime_bci.py`: Real-time loop for acquisition, classification, and GUI feedback
-- `tests/`: Unit tests for signal processing and classification
+- **unicorn_connect.py**: Handles device connection and streaming.
+- **eeg_preprocessing.py**: Cleans, filters, and epochs EEG data.
+- **eeg_features.py**: Extracts features from each epoch.
+- **eeg_classification.py**: Trains and evaluates classifiers.
+- **realtime_bci.py**: Orchestrates real-time loop, integrates all modules.
+- **p300_speller_gui.py**: GUI for stimulus presentation and feedback.
+- **eeg_visualization.py**: Visualization of ERPs, topomaps, and classifier results.
 
-## Usage
-1. **Train a Classifier**
-   - Use `eeg_classification.py` to train and save a model (e.g., LDA) on your labeled data:
+---
+
+## Example Command-Line Usage
+
+### 1. Device Connection & Data Acquisition
+```pwsh
+python .\unicorn_connect.py
+```
+
+### 2. Preprocessing & Feature Extraction (batch/offline)
+```python
+# Example in Python shell or script:
+from eeg_preprocessing import EEGPreprocessingPipeline
+from eeg_features import extract_features
+# eeg_data_uV, events, ch_names = ...
+pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=512)
+cleaned = pipeline.bandpass_filter(eeg_data_uV)
+# ...continue with pipeline methods...
+features = extract_features(epochs_X, 512)
+```
+
+### 3. Model Training & Evaluation
+```pwsh
+python .\eeg_classification.py
+```
+
+### 4. Visualization
+```pwsh
+python
+>>> from eeg_visualization import plot_erp, plot_topomap, plot_confusion_and_metrics
+>>> # Use with your data/labels
+```
+
+### 5. P300 Speller GUI (standalone)
+```pwsh
+python .\p300_speller_gui.py
+```
+
+### 6. Real-Time BCI (full pipeline)
+```pwsh
+python .\realtime_bci.py
+```
+
+### 7. Run All Unit Tests
+```pwsh
+python -m unittest discover -s tests
+```
+
+---
+
+## Quick-Start Guide: Minimal Working Example
+
+1. **Simulate or Load Sample Data**
+   - Use the provided test scripts or generate synthetic data:
    ```python
-   # Example (in Python):
-   import joblib
+   import numpy as np
+   from eeg_preprocessing import EEGPreprocessingPipeline
+   from eeg_features import extract_features
    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-   # X_train, y_train = ...
-   clf = LinearDiscriminantAnalysis()
-   clf.fit(X_train, y_train)
+   # Simulate 10 epochs, 8 channels, 256 samples each
+   X = np.random.randn(10, 8, 256)
+   y = np.array([0,1]*5)
+   pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=256)
+   X_proc = np.array([pipeline.bandpass_filter(epoch) for epoch in X])
+   feats = extract_features(X_proc, 256)
+   clf = LinearDiscriminantAnalysis().fit(feats, y)
+   print('Accuracy:', clf.score(feats, y))
+   ```
+2. **Train and Save a Model**
+   ```python
+   import joblib
    joblib.dump(clf, 'lda_model.joblib')
    ```
-2. **Run Real-Time BCI**
-   - Start the real-time system:
+3. **Launch the GUI**
+   ```pwsh
+   python .\p300_speller_gui.py
+   ```
+4. **Run Real-Time BCI (with real or simulated device)**
    ```pwsh
    python .\realtime_bci.py
    ```
-3. **Run Unit Tests**
-   - From the project root:
-   ```pwsh
-   python -m unittest discover -s tests
-   ```
 
-## Notes
-- All signal processing parameters (filter settings, epoch windows, etc.) are documented in code and docstrings.
-- The codebase is modular and testable, with clear variable names and units.
-- For more details, see docstrings in each module.
+---
+
+## Screenshots
+
+![P300 Speller GUI Example](docs/p300_speller_gui_screenshot.png)
+
+*If you have run the GUI, you can take a screenshot and save it as `docs/p300_speller_gui_screenshot.png` to display it here. For a video demo, consider uploading a short screen recording to YouTube and linking it below:*
+
+[Watch a video demo on YouTube](https://youtu.be/your-demo-link)
+
+---
+
+## Known Limitations
+- Real-time performance depends on hardware and OS scheduling; latency may vary.
+- ICA artifact removal is not performed in real-time (only batch/offline).
+- SSVEP hybrid mode is a placeholder; actual SSVEP detection/classification is not implemented.
+- The system is tested primarily on Windows; Linux/Mac support may require minor adjustments.
+- Unicorn Hybrid Black device is required for real EEG acquisition; use `generate_sample_data.py` for simulation/testing.
+
+---
+
+## Troubleshooting & FAQ
+
+**Q: The GUI does not launch or crashes on startup.**
+- Ensure PyQt5 is installed: `python -m pip install pyqt5`
+- Try running with administrator privileges if you see permission errors.
+
+**Q: I get `NotFittedError` or model not found errors.**
+- Train and save a classifier using `eeg_classification.py` before running real-time BCI.
+- Ensure `lda_model.joblib` is present in the project directory.
+
+**Q: No EEG device found or connection fails.**
+- Make sure the Unicorn Hybrid Black is powered on and connected.
+- Check USB/Bluetooth drivers and permissions.
+- Try restarting your computer and the device.
+
+**Q: Real-time feedback is slow or unresponsive.**
+- Close other CPU-intensive applications.
+- Reduce matrix size or increase ISI/flash duration in the GUI settings.
+
+**Q: How do I use my own data?**
+- Replace `sample_eeg_data.npz` with your own `.npz` file (with keys `X`, `y`, and `sampling_rate_Hz`).
+- Adjust configuration in `config.json` as needed.
+
+**Q: How do I contribute or report bugs?**
+- Open an issue or pull request on GitHub.
+
+---
+
+## Data Format for Training and Real-Time Operation
+
+- **EEG Data (for training and testing):**
+  - File format: `.npz` (NumPy compressed)
+  - Keys:
+    - `X`: shape `(n_epochs, n_channels, n_samples)` — EEG epochs (microvolts)
+    - `y`: shape `(n_epochs,)` — labels (0=non-target, 1=target)
+    - `sampling_rate_Hz`: scalar (e.g., 256 or 512)
+  - Example: see `sample_eeg_data.npz` (generated by `generate_sample_data.py`)
+- **Real-Time Operation:**
+  - The system expects continuous EEG data from the Unicorn Hybrid Black device (via BrainFlow/BoardShim), segmented into epochs in real time based on stimulus timing.
+  - Channel order and count should match the configuration (see `config.json`).
+
+---
+
+## References and Algorithms
+
+- **P300 Detection:**
+  - Filtering, epoching, and baseline correction as in [Krusienski et al., 2006](https://ieeexplore.ieee.org/document/1646518)
+  - Feature extraction: time-domain, frequency-domain, time-frequency (DWT, STFT), and spatial (CSP) features
+  - Classifiers: Linear Discriminant Analysis (LDA), Support Vector Machine (SVM), 1D CNN
+  - For P300 speller paradigms: [Farwell & Donchin, 1988](https://www.sciencedirect.com/science/article/abs/pii/0167876088901052)
+  - For hybrid P300+SSVEP: [Pan et al., 2011](https://www.sciencedirect.com/science/article/pii/S1388245711000992)
+- **Toolboxes and Libraries:**
+  - [MNE-Python](https://mne.tools/)
+  - [BrainFlow](https://brainflow.org/)
+  - [scikit-learn](https://scikit-learn.org/)
+  - [PyWavelets](https://pywavelets.readthedocs.io/)
+
+---
+
+## Pre-trained Models
+
+- **Download Example Pre-trained Model:**
+  - [Download LDA model (trained on sample data)](https://github.com/your-repo/bci-p300-speller/releases/download/v0.1.0/lda_model_sample.joblib)
+  - Place the downloaded file as `lda_model.joblib` in your project directory.
+- **Script to Download Pre-trained Model:**
+  ```python
+  import urllib.request
+  url = 'https://github.com/your-repo/bci-p300-speller/releases/download/v0.1.0/lda_model_sample.joblib'
+  urllib.request.urlretrieve(url, 'lda_model.joblib')
+  print('Pre-trained model downloaded as lda_model.joblib')
+  ```
+- **Or train your own:**
+  - Use `eeg_classification.py` with your data, then save with `joblib.dump(clf, 'lda_model.joblib')`.
+
+---
+
+For more details, see docstrings in each module and the referenced literature above.

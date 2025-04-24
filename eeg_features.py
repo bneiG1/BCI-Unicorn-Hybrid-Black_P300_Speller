@@ -5,7 +5,11 @@ import pywt
 from sklearn.preprocessing import StandardScaler
 
 # --- Feature Extraction Functions ---
-def log_bandpower(eeg_epoch_uV: np.ndarray, sampling_rate_Hz: float, bands=((0.1,4),(4,8),(8,13),(13,30))) -> list:
+def log_bandpower(
+    eeg_epoch_uV: np.ndarray,
+    sampling_rate_Hz: float,
+    bands: tuple = ((0.1,4),(4,8),(8,13),(13,30))
+) -> list[float]:
     """
     Compute log band power for each frequency band for a single channel epoch.
     Args:
@@ -23,7 +27,11 @@ def log_bandpower(eeg_epoch_uV: np.ndarray, sampling_rate_Hz: float, bands=((0.1
         features.append(np.log(bp+1e-8))
     return features
 
-def dwt_features(eeg_epoch_uV: np.ndarray, wavelet='db4', level=3) -> np.ndarray:
+def dwt_features(
+    eeg_epoch_uV: np.ndarray,
+    wavelet: str = 'db4',
+    level: int = 3
+) -> np.ndarray:
     """
     Discrete Wavelet Transform features (mean, std of coefficients).
     Args:
@@ -38,7 +46,11 @@ def dwt_features(eeg_epoch_uV: np.ndarray, wavelet='db4', level=3) -> np.ndarray
     stds = np.array([np.std(c) if c.size > 0 else 0.0 for c in coeffs])
     return np.concatenate((means, stds))
 
-def stft_features(eeg_epoch_uV: np.ndarray, sampling_rate_Hz: float, nperseg=64) -> np.ndarray:
+def stft_features(
+    eeg_epoch_uV: np.ndarray,
+    sampling_rate_Hz: float,
+    nperseg: int = 64
+) -> np.ndarray:
     """
     Short-Time Fourier Transform features (mean amplitude per freq bin).
     Args:
@@ -53,10 +65,10 @@ class CSP:
     """
     Common Spatial Patterns (CSP) for spatial feature extraction.
     """
-    def __init__(self, n_components=4):
+    def __init__(self, n_components: int = 4):
         self.n_components = n_components
         self.filters_ = None
-    def fit(self, epochs_X: np.ndarray, labels_y: np.ndarray):
+    def fit(self, epochs_X: np.ndarray, labels_y: np.ndarray) -> 'CSP':
         """
         Fit CSP filters.
         Args:
@@ -79,7 +91,11 @@ class CSP:
         """
         return np.array([np.dot(self.filters_, epoch).var(axis=1) for epoch in epochs_X])
 
-def extract_features(epochs_X: np.ndarray, sampling_rate_Hz: float, spatial_csp=None) -> np.ndarray:
+def extract_features(
+    epochs_X: np.ndarray,
+    sampling_rate_Hz: float,
+    spatial_csp: CSP = None
+) -> np.ndarray:
     """
     Extract features for each epoch (n_epochs, n_channels, n_samples).
     Returns standardized features for sklearn classifiers.

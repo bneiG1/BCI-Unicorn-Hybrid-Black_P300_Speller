@@ -1,0 +1,16 @@
+{
+    "sampling_rate_Hz": 512,
+    "downsample_to_Hz": 30,
+    "notch_freq_Hz": 50,
+    "bandpass_Hz": [0.1, 30],
+    "ica_n_components": null,
+    "epoch_tmin_s": -0.2,
+    "epoch_tmax_s": 0.8,
+    "n_channels": 8,
+    "matrix_rows": 6,
+    "matrix_cols": 6,
+    "flash_duration_ms": 100,
+    "isi_ms": 75,
+    "feedback_mode": "color",
+    "hybrid_mode": false
+}
