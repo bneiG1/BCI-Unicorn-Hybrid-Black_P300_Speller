@@ -4,9 +4,9 @@ import time
 import numpy as np
 from PyQt5.QtWidgets import QApplication
 from acquisition.unicorn_connect import connect_to_unicorn, start_streaming, stop_streaming, release_resources
-from p300_speller_gui import P300SpellerGUI
-from eeg_preprocessing import EEGPreprocessingPipeline
-from eeg_features import extract_features
+from speller.p300_speller_gui import P300SpellerGUI
+from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
+from data_processing.eeg_features import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import joblib
 import os

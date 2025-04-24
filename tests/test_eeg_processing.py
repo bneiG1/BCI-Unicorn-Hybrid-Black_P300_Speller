@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from eeg_preprocessing import EEGPreprocessingPipeline
-from eeg_features import extract_features, CSP
+from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
+from data_processing.eeg_features import extract_features, CSP
 
 class TestEEGProcessing(unittest.TestCase):
     def setUp(self):

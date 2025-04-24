@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from eeg_features import extract_features
+from data_processing.eeg_features import extract_features
 
 class TestEEGClassification(unittest.TestCase):
     def setUp(self):
