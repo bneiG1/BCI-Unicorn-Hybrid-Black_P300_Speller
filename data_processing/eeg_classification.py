@@ -9,6 +9,9 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv1D, GlobalAveragePooling1D, Dense, Dropout
 from tensorflow.keras.utils import to_categorical
+import os
+import glob
+import pandas as pd
 
 def compute_itr(acc: float, n_classes: int, trial_time: float) -> float:
     """
@@ -164,34 +167,32 @@ def train_evaluate_cnn(
 
 # Example usage (replace with your data loading)
 if __name__ == "__main__":
-    # Example: Generate synthetic data for demonstration
-    n_epochs = 20
-    n_channels = 8
-    n_samples = 128
-    trial_time = 1.0  # seconds per trial
-    np.random.seed(42)
-    # Simulate two classes: target (sinusoid), non-target (noise)
-    t = np.arange(n_samples) / n_samples
-    X = []
-    y = []
-    for i in range(n_epochs):
-        if i % 2 == 0:
-            # Target: sinusoid + noise
-            epoch = 5 * np.sin(2 * np.pi * 10 * t) + np.random.randn(n_channels, n_samples)
-            label = 1
+    # Try to load from CSV if available, else from .npz
+    csv_files = glob.glob(os.path.join("data", "*.csv"))
+    if csv_files:
+        print(f"Loading data from CSV: {csv_files[0]}")
+        df = pd.read_csv(csv_files[0])
+        X = df.iloc[:, :-1].to_numpy()
+        y = df.iloc[:, -1].to_numpy(dtype=int)
+        trial_time = 1.0  # Set a default or load from config if needed
+    else:
+        print("Loading data from NPZ: data/sample_eeg_data.npz")
+        data = np.load("data/sample_eeg_data.npz")
+        X = data['X']  # shape: (n_epochs, n_channels, n_samples)
+        y = data['y']  # shape: (n_epochs,)
+        if 'sampling_rate_Hz' in data:
+            sampling_rate = data['sampling_rate_Hz'].item()
+            trial_time = X.shape[2] / sampling_rate
         else:
-            # Non-target: noise
-            epoch = np.random.randn(n_channels, n_samples)
-            label = 0
-        X.append(epoch)
-        y.append(label)
-    X = np.stack(X, axis=0)
-    y = np.array(y)
-    # Flatten for sklearn (n_epochs, n_channels * n_samples)
-    X_flat = X.reshape((n_epochs, -1))
+            trial_time = 1.0  # fallback
+        X = X.reshape((X.shape[0], -1))
+    y = np.asarray(y)
+    if len(np.unique(y)) < 2:
+        print("Error: The label column contains only one class. Classification requires at least two classes.")
+        exit(1)
     print("\n--- LDA Classifier ---")
-    train_evaluate_lda(X_flat, y, trial_time)
+    train_evaluate_lda(X, y, trial_time)
     print("\n--- SVM Classifier ---")
-    train_evaluate_svm(X_flat, y, trial_time)
+    train_evaluate_svm(X, y, trial_time)
     print("\n--- 1D CNN Classifier ---")
-    train_evaluate_cnn(X_flat, y, trial_time, epochs=5, batch_size=4)
+    train_evaluate_cnn(X, y, trial_time, epochs=5, batch_size=4)
