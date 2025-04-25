@@ -10,7 +10,19 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv1D, GlobalAveragePooling1D, Dense, Dropout
 from tensorflow.keras.utils import to_categorical
 
-def compute_itr(acc, n_classes, trial_time):
+def compute_itr(acc: float, n_classes: int, trial_time: float) -> float:
+    """
+    Compute Information Transfer Rate (ITR) in bits per minute.
+    Args:
+        acc: float
+            Classification accuracy (0-1).
+        n_classes: int
+            Number of possible classes/selections.
+        trial_time: float
+            Time per trial in seconds.
+    Returns:
+        float: ITR in bits/min.
+    """
     # ITR in bits/min
     if acc <= 0 or acc >= 1 or n_classes < 2:
         return 0.0
@@ -18,7 +30,24 @@ def compute_itr(acc, n_classes, trial_time):
     itr = (log2(n_classes) + acc * log2(acc) + (1 - acc) * log2((1 - acc) / (n_classes - 1))) * (60.0 / trial_time)
     return max(itr, 0.0)
 
-def evaluate_classifier(clf, X, y, trial_time, clf_name="Classifier"):
+def evaluate_classifier(
+    clf,
+    X: np.ndarray,
+    y: np.ndarray,
+    trial_time: float,
+    clf_name: str = "Classifier"
+) -> tuple[float, float, float, float, float]:
+    """
+    Evaluate a classifier using 5-fold cross-validation and print metrics.
+    Args:
+        clf: sklearn classifier instance
+        X: np.ndarray, shape (n_samples, n_features)
+        y: np.ndarray, shape (n_samples,)
+        trial_time: float, seconds per trial
+        clf_name: str, name for reporting
+    Returns:
+        Tuple of (accuracy, precision, recall, f1, ITR)
+    """
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     y_pred = cross_val_predict(clf, X, y, cv=skf)
     acc = accuracy_score(y, y_pred)
@@ -32,17 +61,54 @@ def evaluate_classifier(clf, X, y, trial_time, clf_name="Classifier"):
     print(f"Recall:    {rec:.3f}")
     print(f"F1-score:  {f1:.3f}")
     print(f"ITR:       {itr:.2f} bits/min")
-    return acc, prec, rec, f1, itr
+    return float(acc), float(prec), float(rec), float(f1), float(itr)
 
-def train_evaluate_lda(X, y, trial_time):
+def train_evaluate_lda(
+    X: np.ndarray,
+    y: np.ndarray,
+    trial_time: float
+) -> tuple[float, float, float, float, float]:
+    """
+    Train and evaluate a Linear Discriminant Analysis (LDA) classifier.
+    Args:
+        X: np.ndarray, shape (n_samples, n_features)
+        y: np.ndarray, shape (n_samples,)
+        trial_time: float, seconds per trial
+    Returns:
+        Tuple of (accuracy, precision, recall, f1, ITR)
+    """
     clf = LinearDiscriminantAnalysis()
     return evaluate_classifier(clf, X, y, trial_time, clf_name="LDA")
 
-def train_evaluate_svm(X, y, trial_time):
+def train_evaluate_svm(
+    X: np.ndarray,
+    y: np.ndarray,
+    trial_time: float
+) -> tuple[float, float, float, float, float]:
+    """
+    Train and evaluate a Support Vector Machine (SVM) classifier.
+    Args:
+        X: np.ndarray, shape (n_samples, n_features)
+        y: np.ndarray, shape (n_samples,)
+        trial_time: float, seconds per trial
+    Returns:
+        Tuple of (accuracy, precision, recall, f1, ITR)
+    """
     clf = SVC(kernel='rbf', probability=True)
     return evaluate_classifier(clf, X, y, trial_time, clf_name="SVM")
 
-def build_cnn(input_shape, n_classes=2):
+def build_cnn(
+    input_shape: tuple,
+    n_classes: int = 2
+) -> tf.keras.Model:
+    """
+    Build a simple 1D CNN for EEG classification.
+    Args:
+        input_shape: tuple, (n_features, 1)
+        n_classes: int, number of output classes
+    Returns:
+        tf.keras.Model
+    """
     model = Sequential([
         Conv1D(16, 5, activation='relu', input_shape=input_shape),
         Dropout(0.2),
@@ -54,7 +120,24 @@ def build_cnn(input_shape, n_classes=2):
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
-def train_evaluate_cnn(X, y, trial_time, epochs=20, batch_size=16):
+def train_evaluate_cnn(
+    X: np.ndarray,
+    y: np.ndarray,
+    trial_time: float,
+    epochs: int = 20,
+    batch_size: int = 16
+) -> tuple[float, float, float, float, float]:
+    """
+    Train and evaluate a 1D CNN classifier using 5-fold cross-validation.
+    Args:
+        X: np.ndarray, shape (n_samples, n_features)
+        y: np.ndarray, shape (n_samples,)
+        trial_time: float, seconds per trial
+        epochs: int, training epochs per fold
+        batch_size: int, batch size per fold
+    Returns:
+        Tuple of (accuracy, precision, recall, f1, ITR)
+    """
     # X: (n_samples, n_features) -> reshape to (n_samples, n_features, 1)
     X_cnn = X[..., np.newaxis]
     y_cat = to_categorical(y, num_classes=2)
@@ -70,14 +153,14 @@ def train_evaluate_cnn(X, y, trial_time, epochs=20, batch_size=16):
         recs.append(recall_score(y[test_idx], y_pred))
         f1s.append(f1_score(y[test_idx], y_pred))
     acc, prec, rec, f1 = map(np.mean, [accs, precs, recs, f1s])
-    itr = compute_itr(acc, n_classes=2, trial_time=trial_time)
+    itr = compute_itr(float(acc), n_classes=2, trial_time=trial_time)
     print(f"\nCNN Results:")
     print(f"Accuracy:  {acc:.3f}")
     print(f"Precision: {prec:.3f}")
     print(f"Recall:    {rec:.3f}")
     print(f"F1-score:  {f1:.3f}")
     print(f"ITR:       {itr:.2f} bits/min")
-    return acc, prec, rec, f1, itr
+    return float(acc), float(prec), float(rec), float(f1), float(itr)
 
 # Example usage (replace with your data loading)
 if __name__ == "__main__":

@@ -52,3 +52,44 @@ def plot_confusion_and_metrics(y_true, y_pred, metrics_dict=None, class_names=['
         print('Performance Metrics:')
         for k, v in metrics_dict.items():
             print(f'{k}: {v:.3f}')
+
+def plot_erp_with_ci(epochs, labels, ch_names=None, sfreq=1, tmin=0, tmax=1, target_label=1, n_bootstrap=1000, ci=95, channel_idx=None):
+    """
+    Plot grand-average ERP for target epochs with bootstrap confidence intervals.
+    Args:
+        epochs: n_epochs x n_channels x n_samples
+        labels: n_epochs (0=non-target, 1=target)
+        ch_names: list of channel names
+        sfreq: sampling rate (Hz)
+        tmin, tmax: time window (s)
+        target_label: label for target epochs
+        n_bootstrap: number of bootstrap samples
+        ci: confidence interval percentage (e.g., 95)
+        channel_idx: int or list of ints, channels to plot (default: all)
+    """
+    targets = epochs[labels == target_label]
+    times = np.linspace(tmin, tmax, epochs.shape[2])
+    if channel_idx is None:
+        channel_idx = range(epochs.shape[1])
+    elif isinstance(channel_idx, int):
+        channel_idx = [channel_idx]
+    plt.figure(figsize=(10, 6))
+    for ch in channel_idx:
+        data = targets[:, ch, :]
+        mean_erp = np.mean(data, axis=0)
+        # Bootstrap confidence intervals
+        boot_means = np.zeros((n_bootstrap, data.shape[1]))
+        for b in range(n_bootstrap):
+            sample_idx = np.random.choice(data.shape[0], data.shape[0], replace=True)
+            boot_means[b] = np.mean(data[sample_idx, :], axis=0)
+        lower = np.percentile(boot_means, (100 - ci) / 2, axis=0)
+        upper = np.percentile(boot_means, 100 - (100 - ci) / 2, axis=0)
+        label = ch_names[ch] if ch_names else f"Ch {ch}"
+        plt.plot(times, mean_erp, label=f"Target - {label}", color='blue', alpha=0.8)
+        plt.fill_between(times, lower, upper, color='blue', alpha=0.2, label=f"{ci}% CI" if ch == channel_idx[0] else None)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude (uV)')
+    plt.title(f'Grand-Average P300 ERP with {ci}% CI (Target)')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()

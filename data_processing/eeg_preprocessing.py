@@ -2,6 +2,7 @@ import numpy as np
 import mne
 from scipy.signal import ellip, filtfilt, iirnotch, resample
 import logging
+from .config_loader import config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
 
@@ -15,13 +16,14 @@ class EEGPreprocessingPipeline:
         downsample_to_Hz (float): Target sampling rate after downsampling.
         ica_n_components (int or None): Number of ICA components for artifact removal.
     """
-    def __init__(self, sampling_rate_Hz, notch_freq_Hz=50, bandpass_Hz=(0.1, 30), downsample_to_Hz=30, ica_n_components=None):
-        self.sampling_rate_Hz = sampling_rate_Hz
-        self.notch_freq_Hz = notch_freq_Hz
-        self.bandpass_Hz = bandpass_Hz
-        self.downsample_to_Hz = downsample_to_Hz
-        self.ica_n_components = ica_n_components
-        logging.info(f"Pipeline parameters: sampling_rate_Hz={sampling_rate_Hz}, notch_freq_Hz={notch_freq_Hz}, bandpass_Hz={bandpass_Hz}, downsample_to_Hz={downsample_to_Hz}, ica_n_components={ica_n_components}")
+    def __init__(self, sampling_rate_Hz=None, notch_freq_Hz=None, bandpass_Hz=None, downsample_to_Hz=None, ica_n_components=None):
+        # Load from config if not provided
+        self.sampling_rate_Hz = sampling_rate_Hz if sampling_rate_Hz is not None else config["sampling_rate_Hz"]
+        self.notch_freq_Hz = notch_freq_Hz if notch_freq_Hz is not None else config["notch_freq_Hz"]
+        self.bandpass_Hz = tuple(bandpass_Hz) if bandpass_Hz is not None else tuple(config["bandpass_Hz"])
+        self.downsample_to_Hz = downsample_to_Hz if downsample_to_Hz is not None else config["downsample_to_Hz"]
+        self.ica_n_components = ica_n_components if ica_n_components is not None else config["ica_n_components"]
+        logging.info(f"Pipeline parameters: sampling_rate_Hz={self.sampling_rate_Hz}, notch_freq_Hz={self.notch_freq_Hz}, bandpass_Hz={self.bandpass_Hz}, downsample_to_Hz={self.downsample_to_Hz}, ica_n_components={self.ica_n_components}")
 
     def bandpass_filter(self, eeg_data_uV: np.ndarray) -> np.ndarray:
         """Apply elliptic bandpass filter to EEG data (channels x samples)."""
@@ -89,3 +91,83 @@ class EEGPreprocessingPipeline:
         epochs.apply_baseline(baseline_window_s)
         logging.info(f"Baseline correction: interval={baseline_window_s}")
         return epochs
+
+    def compensate_motion_artifacts(self, eeg_data_uV: np.ndarray, accel_data: np.ndarray, threshold: float = 2.0, method: str = 'flag') -> tuple[np.ndarray, np.ndarray]:
+        """
+        Compensate for motion/static artifacts in EEG using accelerometer data.
+        Args:
+            eeg_data_uV: np.ndarray (channels x samples)
+            accel_data: np.ndarray (3 x samples) - accelerometer X, Y, Z
+            threshold: float, threshold for motion detection (std of accel norm)
+            method: 'flag' (mask bad segments) or 'subtract' (adaptive filter, simple regression)
+        Returns:
+            eeg_clean: np.ndarray (channels x samples)
+            artifact_mask: np.ndarray (samples,) - True if artifact detected
+        """
+        # Compute norm of accelerometer signal
+        accel_norm = np.linalg.norm(accel_data, axis=0)
+        # Z-score normalization
+        accel_z = (accel_norm - np.mean(accel_norm)) / (np.std(accel_norm) + 1e-8)
+        artifact_mask = np.abs(accel_z) > threshold
+        eeg_clean = eeg_data_uV.copy()
+        if method == 'flag':
+            # Optionally zero out or mark artifact samples
+            eeg_clean[:, artifact_mask] = np.nan  # or 0, or interpolate
+        elif method == 'subtract':
+            # Simple regression: remove accel-correlated component from each EEG channel
+            for ch in range(eeg_clean.shape[0]):
+                # Linear regression: EEG = a*accel_x + b*accel_y + c*accel_z + d
+                X = accel_data.T  # shape (samples, 3)
+                y = eeg_clean[ch, :]
+                X_ = np.column_stack([X, np.ones(X.shape[0])])
+                coef, *_ = np.linalg.lstsq(X_, y, rcond=None)
+                pred = X_ @ coef
+                eeg_clean[ch, :] = y - pred  # remove motion-correlated part
+        logging.info(f"Motion artifact compensation: {np.sum(artifact_mask)} samples flagged (threshold={threshold})")
+        return eeg_clean, artifact_mask
+
+    def apply_asr(self, eeg_data_uV: np.ndarray, channel_names: list[str], sfreq: float = None, cutoff: float = 20.0) -> np.ndarray:
+        """
+        Apply Artifact Subspace Reconstruction (ASR) to EEG data.
+        Args:
+            eeg_data_uV: np.ndarray (channels x samples)
+            channel_names: list of str
+            sfreq: float, sampling frequency (defaults to pipeline setting)
+            cutoff: float, ASR cutoff parameter (default 20.0)
+        Returns:
+            np.ndarray: Cleaned EEG data (channels x samples)
+        """
+        if sfreq is None:
+            sfreq = self.sampling_rate_Hz
+        info = mne.create_info(ch_names=channel_names, sfreq=sfreq, ch_types='eeg')
+        raw = mne.io.RawArray(eeg_data_uV, info)
+        asr = mne.preprocessing.ASR(cutoff=cutoff)
+        raw_clean = asr.fit_transform(raw)
+        logging.info(f"ASR applied (cutoff={cutoff})")
+        return raw_clean.get_data()
+
+    def online_ica(self, eeg_data_uV: np.ndarray, channel_names: list[str], sfreq: float = None, n_components: int = None) -> np.ndarray:
+        """
+        Apply (simulated) online ICA to EEG data using MNE-RealTime.
+        Args:
+            eeg_data_uV: np.ndarray (channels x samples)
+            channel_names: list of str
+            sfreq: float, sampling frequency (defaults to pipeline setting)
+            n_components: int, number of ICA components
+        Returns:
+            np.ndarray: Cleaned EEG data (channels x samples)
+        """
+        # NOTE: True online ICA requires a streaming pipeline (see MNE-RealTime docs).
+        # This is a placeholder for batch/mini-batch ICA.
+        if sfreq is None:
+            sfreq = self.sampling_rate_Hz
+        if n_components is None:
+            n_components = self.ica_n_components
+        info = mne.create_info(ch_names=channel_names, sfreq=sfreq, ch_types='eeg')
+        raw = mne.io.RawArray(eeg_data_uV, info)
+        ica = mne.preprocessing.ICA(n_components=n_components, max_iter='auto', random_state=97)
+        ica.fit(raw)
+        # Optionally, automatically exclude EOG/muscle components here
+        raw_clean = ica.apply(raw.copy())
+        logging.info(f"Online ICA (simulated) applied (n_components={n_components})")
+        return raw_clean.get_data()

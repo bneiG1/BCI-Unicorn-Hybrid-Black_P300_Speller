@@ -6,6 +6,22 @@ from brainflow.board_shim import (
     BoardIds,
     BrainFlowError,
 )
+from data_processing.config_loader import config
+
+# Electrode mode: 'dry' (default) or 'gel'. Loaded from config, can be changed at runtime.
+_electrode_mode = config.get("electrode_mode", "dry")
+
+def get_electrode_mode():
+    """Get current electrode mode ('dry' or 'gel')."""
+    return _electrode_mode
+
+def set_electrode_mode(mode: str):
+    """Set electrode mode ('dry' or 'gel')."""
+    global _electrode_mode
+    if mode not in ("dry", "gel"):
+        raise ValueError("Electrode mode must be 'dry' or 'gel'.")
+    _electrode_mode = mode
+    print(f"Electrode mode set to: {_electrode_mode}")
 
 
 def discover_unicorn_devices():

@@ -3,6 +3,7 @@ from scipy.stats import entropy
 from scipy.signal import welch, stft
 import pywt
 from sklearn.preprocessing import StandardScaler
+from typing import Optional
 
 # --- Feature Extraction Functions ---
 def log_bandpower(
@@ -89,19 +90,30 @@ class CSP:
         Returns:
             np.ndarray (n_epochs, n_components)
         """
+        if self.filters_ is None:
+            raise ValueError("CSP has not been fitted. Call fit before transform.")
         return np.array([np.dot(self.filters_, epoch).var(axis=1) for epoch in epochs_X])
 
 def extract_features(
     epochs_X: np.ndarray,
     sampling_rate_Hz: float,
-    spatial_csp: CSP = None
+    spatial_csp: Optional['CSP'] = None,
+    tti_list: Optional[np.ndarray] = None
 ) -> np.ndarray:
     """
-    Extract features for each epoch (n_epochs, n_channels, n_samples).
-    Returns standardized features for sklearn classifiers.
+    Extract features for each EEG epoch for classification.
+    Optionally includes TTI (target-to-target interval) as a feature.
+    Args:
+        epochs_X: np.ndarray (n_epochs, n_channels, n_samples)
+        sampling_rate_Hz: float
+        spatial_csp: Optional[CSP]
+        tti_list: Optional[np.ndarray], shape (n_epochs,)
+            Target-to-target interval (in seconds or samples) for each epoch.
+    Returns:
+        np.ndarray: Standardized feature matrix for sklearn classifiers, shape (n_epochs, n_features).
     """
     features = []
-    for epoch in epochs_X:
+    for i, epoch in enumerate(epochs_X):
         epoch_feats = []
         # Time-domain
         epoch_feats.append(np.mean(epoch, axis=1))
@@ -113,6 +125,9 @@ def extract_features(
         epoch_feats.append([dwt_features(chan) for chan in epoch])
         # Time-frequency
         epoch_feats.append([stft_features(chan, sampling_rate_Hz) for chan in epoch])
+        # TTI feature
+        if tti_list is not None:
+            epoch_feats.append([tti_list[i]])
         # Flatten
         epoch_feats = np.concatenate([np.ravel(f) for f in epoch_feats])
         features.append(epoch_feats)

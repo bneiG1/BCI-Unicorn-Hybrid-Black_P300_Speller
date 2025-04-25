@@ -27,6 +27,7 @@ from brainflow.board_shim import BoardShim, BoardIds
 import matplotlib.pyplot as plt
 from .acquisition_workere.acquisition_worker import AcquisitionWorker
 from .visualizer.eeg_visualizer import EEGVisualizerDialog
+from .language_model import LanguageModel
 
 
 class P300SpellerGUI(QWidget):
@@ -108,6 +109,22 @@ class P300SpellerGUI(QWidget):
         self.setLayout(main_layout)
         self.feedback_mode = "color"
         self.hybrid_mode = "off"
+
+        # Language Model Integration
+        self.lm_suggestion_layout = QHBoxLayout()
+        self.lm_suggestion_buttons = []
+        for _ in range(3):
+            btn = QPushButton("")
+            btn.setVisible(False)
+            btn.clicked.connect(self.handle_lm_suggestion)
+            self.lm_suggestion_layout.addWidget(btn)
+            self.lm_suggestion_buttons.append(btn)
+        main_layout.addLayout(self.lm_suggestion_layout)
+
+        self.language_model = None
+        self.lm_api_key = os.environ.get("OPENAI_API_KEY", "")
+        if self.lm_api_key:
+            self.language_model = LanguageModel(self.lm_api_key)
 
     def toggle_connect(self):
         if self.board is None:
@@ -413,6 +430,30 @@ class P300SpellerGUI(QWidget):
                 self.eeg_buffer = new_data
             else:
                 self.eeg_buffer = np.concatenate((self.eeg_buffer, new_data), axis=1)
+
+    def update_lm_suggestions(self, context_text: str):
+        if not self.language_model:
+            for btn in self.lm_suggestion_buttons:
+                btn.setVisible(False)
+            return
+        suggestions = self.language_model.predict_words(context_text, n_suggestions=3)
+        for i, btn in enumerate(self.lm_suggestion_buttons):
+            if i < len(suggestions):
+                btn.setText(suggestions[i])
+                btn.setVisible(True)
+            else:
+                btn.setVisible(False)
+
+    def handle_lm_suggestion(self):
+        sender = self.sender()
+        # Defensive: Only proceed if sender is a QPushButton
+        from PyQt5.QtWidgets import QPushButton
+        if isinstance(sender, QPushButton):
+            suggestion = str(sender.text())
+            if suggestion:
+                self.target_text += " " + suggestion
+                self.update_lm_suggestions(self.target_text)
+                # Optionally, update the GUI to reflect the new context
 
 
 if __name__ == "__main__":

@@ -10,13 +10,14 @@ from data_processing.eeg_features import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import joblib
 import os
+from data_processing.config_loader import config
 
-# --- CONFIGURATION --- 
-SFREQ = 512  # Unicorn default
-DOWNSAMPLED_FREQ = 30
-EPOCH_TMIN = -0.2  # seconds
-EPOCH_TMAX = 0.8   # seconds
-N_CHANNELS = 8     # Adjust to your device
+# --- CONFIGURATION ---
+SFREQ = config["sampling_rate_Hz"]
+DOWNSAMPLED_FREQ = config["downsample_to_Hz"]
+EPOCH_TMIN = config["epoch_tmin_s"]
+EPOCH_TMAX = config["epoch_tmax_s"]
+N_CHANNELS = config["n_channels"]
 CH_NAMES = [f"EEG{i+1}" for i in range(N_CHANNELS)]
 
 # Load or train your classifier (here, we load a pre-trained LDA model)
@@ -75,7 +76,7 @@ def classify_and_feedback(board, gui, pipeline, clf):
                     epoch_proc = pipeline.bandpass_filter(epoch)
                     epoch_proc = pipeline.notch_filter(epoch_proc)
                     epoch_proc = pipeline.downsample(epoch_proc)
-                    feats = extract_features([epoch_proc], DOWNSAMPLED_FREQ)
+                    feats = extract_features(np.array([epoch_proc]), DOWNSAMPLED_FREQ)
                     pred = clf.predict(feats)[0]
                     btn = gui.buttons[stim_idx // gui.cols][stim_idx % gui.cols]
                     if pred == 1:
