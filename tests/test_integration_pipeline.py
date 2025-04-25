@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
 from data_processing.eeg_features import extract_features
 from data_processing.eeg_classification import train_evaluate_lda
-from speller.p300_speller_gui import P300SpellerGUI
+from speller.p300_speller import P300SpellerGUI
 
 class TestFullPipeline(unittest.TestCase):
     def setUp(self):
