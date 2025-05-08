@@ -1,9 +1,11 @@
+
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 from brainflow.board_shim import BoardIds, BoardShim
+from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
 
 
 class PlotWorker(QThread):
@@ -62,14 +64,28 @@ class EEGVisualizerDialog(QDialog):
         # Only plot the last 5 seconds
         max_samples = int(self.sfreq * 5)
         plot_data = eeg_buffer[:, -max_samples:] if eeg_buffer.shape[1] > max_samples else eeg_buffer
+        # --- Apply full preprocessing pipeline as in classification ---
+        try:
+            pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=self.sfreq)
+            eeg_data = plot_data[self.eeg_ch, :]
+            # Apply bandpass filter
+            filtered = pipeline.bandpass_filter(eeg_data)
+            # Apply notch filter
+            filtered = pipeline.notch_filter(filtered)
+            # Downsample if needed (only if plotting at lower rate is desired)
+            # filtered = pipeline.downsample(filtered)
+            processed_data = filtered
+        except Exception as e:
+            processed_data = plot_data[self.eeg_ch, :]
+            print(f"[EEGVisualizer] Filtering error: {e}")
         # EEG
         self.ax_eeg.clear()
         for i, ch in enumerate(self.eeg_ch):
-            label = self.eeg_names[ch] if self.eeg_names and ch < len(self.eeg_names) else f"EEG {ch+1}"
-            self.ax_eeg.plot(plot_data[ch, :], label=label)
+            label = f"EEG {ch+1}"
+            self.ax_eeg.plot(processed_data[i, :], label=label)
         self.ax_eeg.set_xlabel("Sample")
         self.ax_eeg.set_ylabel("Amplitude (uV)")
-        self.ax_eeg.set_title("EEG Channels (last 5s)")
+        self.ax_eeg.set_title("EEG Channels (last 5s, filtered and notched)")
         self.ax_eeg.legend(loc="upper right", fontsize="small")
         # Accelerometer
         if self.ax_accel:

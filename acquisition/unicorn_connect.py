@@ -6,7 +6,7 @@ from brainflow.board_shim import (
     BoardIds,
     BrainFlowError,
 )
-from data_processing.config_loader import config
+from config.config_loader import config
 
 # Electrode mode: 'dry' (default) or 'gel'. Loaded from config, can be changed at runtime.
 _electrode_mode = config.get("electrode_mode", "dry")

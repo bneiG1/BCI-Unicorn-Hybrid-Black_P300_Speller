@@ -2,7 +2,7 @@ import numpy as np
 import mne
 from scipy.signal import ellip, filtfilt, iirnotch, resample
 import logging
-from .config_loader import config
+from ..config.config_loader import config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
 

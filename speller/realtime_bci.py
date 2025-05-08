@@ -10,7 +10,7 @@ from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
 from data_processing.eeg_features import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import joblib
-from data_processing.config_loader import config
+from config.config_loader import config
 
 # --- CONFIGURATION ---
 SFREQ = config["sampling_rate_Hz"]

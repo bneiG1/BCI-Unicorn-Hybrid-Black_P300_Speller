@@ -66,6 +66,7 @@ class P300SpellerGUI(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("P300 Speller")
+        self.setFixedSize(800, 600)  # Set a fixed window size to prevent resizing
         from PyQt5.QtWidgets import QMenuBar, QWidget
 
         main_layout = QVBoxLayout()
@@ -172,7 +173,8 @@ class P300SpellerGUI(QWidget):
             self.target_text,
             self.pause_between_chars,
         )
-        if dlg.exec_():
+        # Non-modal: show the dialog and connect to a slot for when options are updated
+        def on_options_applied():
             vals = dlg.get_values()
             if vals["size"] != self.rows:
                 self.set_matrix_size(vals["size"])
@@ -184,6 +186,14 @@ class P300SpellerGUI(QWidget):
             self.n_flashes = vals["n_flashes"]
             self.target_text = vals["target_text"]
             self.pause_between_chars = vals["pause_between_chars"]
+        # Try to connect to a signal if it exists, else fallback to modal
+        if hasattr(dlg, 'applied'):
+            dlg.applied.connect(on_options_applied)
+            dlg.show()
+        else:
+            # fallback: modal
+            if dlg.exec_():
+                on_options_applied()
 
     def set_matrix_layout(self, layout):
         self.flash_mode = layout
@@ -422,7 +432,7 @@ class P300SpellerGUI(QWidget):
         from speller.visualizer.eeg_visualizer import EEGVisualizerDialog
         sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
         dlg = EEGVisualizerDialog(self.eeg_buffer, self.eeg_names, self, sfreq)
-        dlg.exec_()
+        dlg.show()  # Non-modal
 
     def update_eeg_buffer(self, new_data):
         if new_data is not None and new_data.shape[1] > 0:
