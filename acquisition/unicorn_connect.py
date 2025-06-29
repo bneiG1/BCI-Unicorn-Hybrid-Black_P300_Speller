@@ -1,3 +1,5 @@
+import logging
+import os
 import sys
 import time
 from brainflow.board_shim import (
@@ -147,9 +149,9 @@ def get_board_data(board):
         ch_labels.append("Timestamp")
     if markers_channel is not None:
         ch_labels.append("Markers")
-    print(f"Data shape: {data.shape} - Rows are channels, Columns are time samples")
-    print(f'CSV header: {", ".join(ch_labels)}')
-    print("\n")
+    logging.info(f"Data shape: {data.shape} - Rows are channels, Columns are time samples")
+    logging.info(f'CSV header: {", ".join(ch_labels)}')
+    logging.info("")
     return ch_labels
 
 
@@ -194,4 +196,23 @@ def main():
 
 
 if __name__ == "__main__":
+    # Ensure logs directory exists
+    os.makedirs('logs', exist_ok=True)
+    # Use a single log file for the whole app, set in env or create if not set
+    log_filename = os.environ.get('UNICORN_LOG_FILE')
+    if not log_filename:
+        import datetime
+        log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
+        os.environ['UNICORN_LOG_FILE'] = log_filename
+    # Redirect stdout and stderr to the log file
+    sys.stdout = open(log_filename, 'a', encoding='utf-8', buffering=1)
+    sys.stderr = sys.stdout
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s:%(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
+            logging.StreamHandler(sys.__stdout__)
+        ]
+    )
     main()

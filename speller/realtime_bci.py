@@ -11,7 +11,6 @@ from data_processing.eeg_features import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import joblib
 from config.config_loader import config
-import datetime
 
 # --- CONFIGURATION ---
 SFREQ = config["sampling_rate_Hz"]
@@ -25,13 +24,17 @@ MODEL_PATH = 'models/lda_model.joblib'
 
 # Ensure logs directory exists
 os.makedirs('logs', exist_ok=True)
-log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
-os.environ['UNICORN_LOG_FILE'] = log_filename
+# Use a single log file for the whole app, set in env or create if not set
+log_filename = os.environ.get('UNICORN_LOG_FILE')
+if not log_filename:
+    import datetime
+    log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
+    os.environ['UNICORN_LOG_FILE'] = log_filename
 # Redirect stdout and stderr to the log file
 sys.stdout = open(log_filename, 'a', encoding='utf-8', buffering=1)
 sys.stderr = sys.stdout
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s %(levelname)s:%(message)s',
     handlers=[
         logging.FileHandler(log_filename, mode='a', encoding='utf-8'),

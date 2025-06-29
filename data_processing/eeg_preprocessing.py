@@ -1,22 +1,30 @@
 import numpy as np
 import mne
 from scipy.signal import ellip, filtfilt, iirnotch, resample
+import datetime
 import logging
+import sys
 import os
 from config.config_loader import config
 
+# Ensure logs directory exists
+os.makedirs('logs', exist_ok=True)
+# Use the log file set by the main app, or create if not set
 log_filename = os.environ.get('UNICORN_LOG_FILE')
-if log_filename:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s:%(message)s',
-        handlers=[
-            logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
-else:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+if not log_filename:
+    log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
+    os.environ['UNICORN_LOG_FILE'] = log_filename
+# Redirect stdout and stderr to the log file
+sys.stdout = open(log_filename, 'a', encoding='utf-8', buffering=1)
+sys.stderr = sys.stdout
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s:%(message)s',
+    handlers=[
+        logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
+        logging.StreamHandler(sys.__stdout__)
+    ]
+)
 
 class EEGPreprocessingPipeline:
     """
