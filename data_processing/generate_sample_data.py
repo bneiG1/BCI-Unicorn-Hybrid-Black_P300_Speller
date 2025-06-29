@@ -1,4 +1,6 @@
 import numpy as np
+import logging
+import os
 
 def generate_sample_eeg_dataset(
     filename: str = "data/sample_eeg_data.npz",
@@ -26,7 +28,6 @@ def generate_sample_eeg_dataset(
         artifact_prob: Probability of artifact per epoch
         artifact_magnitude: Step size for artifact
     """
-    import logging
     t = np.arange(n_samples) / sampling_rate_Hz
     X = []
     y = []
@@ -52,6 +53,16 @@ def generate_sample_eeg_dataset(
     logging.info(f"Sample EEG dataset saved to {filename}")
 
 if __name__ == "__main__":
-    import logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+    log_filename = os.environ.get('UNICORN_LOG_FILE')
+    if log_filename:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s %(levelname)s:%(message)s',
+            handlers=[
+                logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
+                logging.StreamHandler()
+            ]
+        )
+    else:
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
     generate_sample_eeg_dataset()

@@ -2,9 +2,21 @@ import numpy as np
 import mne
 from scipy.signal import ellip, filtfilt, iirnotch, resample
 import logging
-from ..config.config_loader import config
+import os
+from config.config_loader import config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+log_filename = os.environ.get('UNICORN_LOG_FILE')
+if log_filename:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s:%(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+else:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
 
 class EEGPreprocessingPipeline:
     """

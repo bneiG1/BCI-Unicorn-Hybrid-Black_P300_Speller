@@ -11,6 +11,7 @@ from data_processing.eeg_features import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import joblib
 from config.config_loader import config
+import datetime
 
 # --- CONFIGURATION ---
 SFREQ = config["sampling_rate_Hz"]
@@ -22,7 +23,21 @@ CH_NAMES = [f"EEG{i+1}" for i in range(N_CHANNELS)]
 
 MODEL_PATH = 'models/lda_model.joblib'
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s:%(message)s')
+# Ensure logs directory exists
+os.makedirs('logs', exist_ok=True)
+log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
+os.environ['UNICORN_LOG_FILE'] = log_filename
+# Redirect stdout and stderr to the log file
+sys.stdout = open(log_filename, 'a', encoding='utf-8', buffering=1)
+sys.stderr = sys.stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s:%(message)s',
+    handlers=[
+        logging.FileHandler(log_filename, mode='a', encoding='utf-8'),
+        logging.StreamHandler(sys.__stdout__)
+    ]
+)
 
 def load_classifier(model_path=MODEL_PATH):
     """Load the trained classifier or print a clear error if missing."""

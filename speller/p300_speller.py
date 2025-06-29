@@ -25,7 +25,7 @@ from acquisition.unicorn_connect import (
 )
 from brainflow.board_shim import BoardShim, BoardIds
 import matplotlib.pyplot as plt
-from .acquisition_workere.acquisition_worker import AcquisitionWorker
+from .acquisition_worker.acquisition_worker import AcquisitionWorker
 from .visualizer.eeg_visualizer import EEGVisualizerDialog
 from .language_model import LanguageModel
 
@@ -377,17 +377,31 @@ class P300SpellerGUI(QWidget):
         QMessageBox.warning(self, "Acquisition", f"EEG acquisition error: {msg}")
 
     def closeEvent(self, a0):
+        # Stop acquisition worker thread if running
+        if hasattr(self, 'acquisition_worker'):
+            try:
+                self.acquisition_worker.stop()
+                del self.acquisition_worker
+            except Exception:
+                pass
+        # Stop streaming if running
         if self.acquisition_running and self.board:
             try:
                 stop_streaming(self.board)
+                self.acquisition_running = False
             except Exception:
                 pass
+        # Release device resources
         if self.board:
             try:
                 release_resources(self.board)
             except Exception:
                 pass
+            self.board = None
         super().closeEvent(a0)
+        # Forcefully exit the application
+        import os
+        os._exit(0)
 
     def resizeEvent(self, a0):
         board_widget = getattr(self, "board_widget", None)

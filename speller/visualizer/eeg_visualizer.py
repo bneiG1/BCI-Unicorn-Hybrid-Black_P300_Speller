@@ -1,4 +1,3 @@
-
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -66,6 +65,10 @@ class EEGVisualizerDialog(QDialog):
         plot_data = eeg_buffer[:, -max_samples:] if eeg_buffer.shape[1] > max_samples else eeg_buffer
         # --- Apply full preprocessing pipeline as in classification ---
         try:
+            # filtfilt requires input length > padlen (27 for 4th order elliptic)
+            min_samples = 27
+            if plot_data.shape[1] < min_samples:
+                raise ValueError(f"Not enough samples for filtering (need >={min_samples}, got {plot_data.shape[1]})")
             pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=self.sfreq)
             eeg_data = plot_data[self.eeg_ch, :]
             # Apply bandpass filter
