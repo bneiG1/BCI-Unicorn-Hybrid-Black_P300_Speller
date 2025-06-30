@@ -13,8 +13,11 @@ def generate_flash_sequence(rows, cols, n_flashes, flash_mode):
         elif flash_mode == 'checkerboard':
             s = [('checker', (i, j)) for i in range(rows) for j in range(cols) if (i+j)%2==0]
         elif flash_mode == 'region':
-            region_size = max(2, rows//2)
-            s = [('region', (i, j)) for i in range(0, rows, region_size) for j in range(0, cols, region_size)]
+            region_size = 3
+            s = []
+            for i in range(0, rows, region_size):
+                for j in range(0, cols, region_size):
+                    s.append(('region', (i, j)))
         else:
             s = [('single', idx) for idx in range(rows * cols)]
         np.random.shuffle(s)

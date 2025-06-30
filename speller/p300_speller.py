@@ -501,9 +501,23 @@ class P300SpellerGUI(QWidget):
             is_rowcol = True
             for i in range(self.rows):
                 flashed_buttons.append(self.buttons[i][idx])
+        elif stim_type == 'region':
+            # idx is (i, j) for top-left of region
+            region_size = 3
+            i0, j0 = idx
+            for di in range(region_size):
+                for dj in range(region_size):
+                    ii, jj = i0 + di, j0 + dj
+                    if 0 <= ii < self.rows and 0 <= jj < self.cols:
+                        flashed_buttons.append(self.buttons[ii][jj])
         else:  # single
-            flashed_buttons.append(self.buttons[idx // self.cols][idx % self.cols])
-        # Determine if target character is in this row/col
+            # Handle idx being a tuple (row, col) or an int
+            if isinstance(idx, tuple):
+                row, col = idx
+            else:
+                row, col = idx // self.cols, idx % self.cols
+            flashed_buttons.append(self.buttons[row][col])
+        # Determine if target character is in this row/col/region
         target_in_flash = False
         if hasattr(self, 'target_char_matrix_idx') and self.target_char_matrix_idx is not None:
             ti, tj = divmod(self.target_char_matrix_idx, self.cols)
@@ -511,8 +525,15 @@ class P300SpellerGUI(QWidget):
                 target_in_flash = True
             elif stim_type == 'col' and idx == tj:
                 target_in_flash = True
-            elif stim_type == 'single' and idx == self.target_char_matrix_idx:
-                target_in_flash = True
+            elif stim_type == 'region':
+                i0, j0 = idx
+                if i0 <= ti < i0 + 3 and j0 <= tj < j0 + 3:
+                    target_in_flash = True
+            elif stim_type == 'single':
+                if isinstance(idx, tuple):
+                    target_in_flash = (idx == (ti, tj))
+                else:
+                    target_in_flash = (idx == self.target_char_matrix_idx)
         for btn in flashed_buttons:
             apply_feedback(
                 btn,
