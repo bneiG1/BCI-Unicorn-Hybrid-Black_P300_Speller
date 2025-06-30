@@ -5,7 +5,6 @@ import os
 import random
 import json
 
-# Load image config from config.json
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', 'config.json')
 with open(CONFIG_PATH, 'r') as f:
     config = json.load(f)
@@ -14,10 +13,8 @@ IMG_EXTENSIONS = tuple(config.get('img_extensions', ['.jpg', '.jpeg', '.png', '.
 IMG_LIST = [os.path.join(IMG_DIR, f) for f in os.listdir(IMG_DIR) if f.lower().endswith(IMG_EXTENSIONS)]
 
 def apply_feedback(btn, feedback_modes, is_target, is_target_rowcol=False):
-    # feedback_modes is now a list of selected feedback options
     if not isinstance(feedback_modes, list):
         feedback_modes = [feedback_modes]
-    # Handle images overlay first if selected
     if 'images' in feedback_modes and IMG_LIST:
         img_path = random.choice(IMG_LIST)
         pixmap = QPixmap(img_path)
@@ -35,7 +32,6 @@ def apply_feedback(btn, feedback_modes, is_target, is_target_rowcol=False):
         overlay.show()
         btn._image_overlay = overlay
         btn.setText(getattr(btn, '_matrix_char', btn.text()))
-    # Compose style
     style = ''
     if 'color' in feedback_modes:
         style += 'background-color: yellow;'
@@ -44,6 +40,7 @@ def apply_feedback(btn, feedback_modes, is_target, is_target_rowcol=False):
     btn.setStyleSheet(style)
     # Play sound if selected and is_target or is_target_rowcol
     if 'sound' in feedback_modes and (is_target or is_target_rowcol):
+        # TODO: cauta un sunet mai ok pe viitor
         QApplication.beep()
 
 def highlight_target_character(buttons, target_char_matrix_idx, cols):

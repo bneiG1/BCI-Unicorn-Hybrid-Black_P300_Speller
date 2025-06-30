@@ -2,6 +2,7 @@ import openai
 from typing import List
 
 class LanguageModel:
+    # pentru dictionar si predictie de cuvinte
     """
     Wrapper for querying GPT-3.5 or similar LLMs for word prediction in BCI context.
     """

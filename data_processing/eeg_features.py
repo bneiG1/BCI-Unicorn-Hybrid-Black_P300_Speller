@@ -115,17 +115,24 @@ def extract_features(
     features = []
     for i, epoch in enumerate(epochs_X):
         epoch_feats = []
-        # Time-domain
+        # 1. ERP Metrics: Peak amplitude (per channel)
+        epoch_feats.append(np.max(epoch, axis=1))
+        # 2. Time-domain: mean, variance, entropy (per channel)
         epoch_feats.append(np.mean(epoch, axis=1))
         epoch_feats.append(np.var(epoch, axis=1))
         epoch_feats.append(entropy(np.abs(epoch), axis=1))
+        # 3. Frequency-domain: log bandpower (delta, theta, alpha, beta), mean PSD, spectral entropy
         epoch_feats.append([log_bandpower(chan, sampling_rate_Hz) for chan in epoch])
-        # Frequency-domain
         epoch_feats.append([welch(chan, sampling_rate_Hz, nperseg=min(256, len(chan)))[1].mean() for chan in epoch])
+        # Spectral entropy
+        for chan in epoch:
+            f, psd = welch(chan, sampling_rate_Hz, nperseg=min(256, len(chan)))
+            psd_norm = psd / (np.sum(psd) + 1e-12)
+            epoch_feats.append(entropy(psd_norm))
+        # 4. Time-frequency: DWT (mean, std of coeffs), STFT (mean amplitude per freq bin)
         epoch_feats.append([dwt_features(chan) for chan in epoch])
-        # Time-frequency
         epoch_feats.append([stft_features(chan, sampling_rate_Hz) for chan in epoch])
-        # TTI feature
+        # 5. TTI feature
         if tti_list is not None:
             epoch_feats.append([tti_list[i]])
         # Flatten

@@ -29,6 +29,7 @@ except ImportError:
     swlda_available = False
 
 # Setup
+# TODO: converteste csv-urile in npz dupa secventa de calibrare
 DATA_PATH = 'data/sample_eeg_data.npz'
 MODELS_DIR = 'models'
 os.makedirs(MODELS_DIR, exist_ok=True)

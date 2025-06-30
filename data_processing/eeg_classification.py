@@ -165,9 +165,7 @@ def train_evaluate_cnn(
     print(f"ITR:       {itr:.2f} bits/min")
     return float(acc), float(prec), float(rec), float(f1), float(itr)
 
-# Example usage (replace with your data loading)
 if __name__ == "__main__":
-    # Try to load from CSV if available, else from .npz
     csv_files = glob.glob(os.path.join("data", "*.csv"))
     if csv_files:
         print(f"Loading data from CSV: {csv_files[0]}")

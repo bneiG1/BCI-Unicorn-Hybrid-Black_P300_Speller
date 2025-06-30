@@ -5,6 +5,7 @@ import shutil
 import site
 import glob
 
+
 # List of main entry scripts to build
 ENTRY_SCRIPTS = [
 'speller/realtime_bci.py',

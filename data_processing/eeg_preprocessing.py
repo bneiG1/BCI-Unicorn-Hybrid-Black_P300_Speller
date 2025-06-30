@@ -7,9 +7,7 @@ import sys
 import os
 from config.config_loader import config
 
-# Ensure logs directory exists
 os.makedirs('logs', exist_ok=True)
-# Use the log file set by the main app, or create if not set
 log_filename = os.environ.get('UNICORN_LOG_FILE')
 if not log_filename:
     log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
@@ -93,7 +91,6 @@ class EEGPreprocessingPipeline:
         # Use frontal channels for artifact detection (e.g., EOG/muscle)
         frontal_idx = self.get_channel_indices(channel_names, self.frontal_channels)
         if frontal_idx:
-            # Try to auto-detect artifact components using frontal channels
             eog_inds, _ = ica.find_bads_eog(raw, ch_name=[channel_names[i] for i in frontal_idx])
             if eog_inds:
                 ica.exclude = eog_inds
@@ -149,14 +146,12 @@ class EEGPreprocessingPipeline:
         """
         # Compute norm of accelerometer signal
         accel_norm = np.linalg.norm(accel_data, axis=0)
-        # Z-score normalization
         accel_z = (accel_norm - np.mean(accel_norm)) / (np.std(accel_norm) + 1e-8)
         artifact_mask = np.abs(accel_z) > threshold
         eeg_clean = eeg_data_uV.copy()
         if channel_names is not None:
             frontal_idx = self.get_channel_indices(channel_names, self.frontal_channels)
             if method == 'flag' and frontal_idx:
-                # Only flag artifacts in frontal channels
                 eeg_clean[frontal_idx, artifact_mask] = np.nan
             elif method == 'subtract' and frontal_idx:
                 for ch in frontal_idx:
@@ -211,7 +206,7 @@ class EEGPreprocessingPipeline:
             np.ndarray: Cleaned EEG data (channels x samples)
         """
         # NOTE: True online ICA requires a streaming pipeline (see MNE-RealTime docs).
-        # This is a placeholder for batch/mini-batch ICA.
+        # TODO: trebuie sa implementez, dupa ce refactorizez tot codul sa fie mai modular si bine gandit
         if sfreq is None:
             sfreq = self.sampling_rate_Hz
         if n_components is None:
@@ -220,7 +215,6 @@ class EEGPreprocessingPipeline:
         raw = mne.io.RawArray(eeg_data_uV, info)
         ica = mne.preprocessing.ICA(n_components=n_components, max_iter='auto', random_state=97)
         ica.fit(raw)
-        # Optionally, automatically exclude EOG/muscle components here
         raw_clean = ica.apply(raw.copy())
         logging.info(f"Online ICA (simulated) applied (n_components={n_components})")
         return raw_clean.get_data()
@@ -229,9 +223,3 @@ class EEGPreprocessingPipeline:
         """Return only posterior channels (Pz, Oz) for P300 detection."""
         idx = self.get_channel_indices(channel_names, self.posterior_channels)
         return eeg_data_uV[idx, :]
-
-    # ...existing code...
-    # In feature extraction/classification, use get_posterior_data to select Pz, Oz
-    # Example usage:
-    # posterior_eeg = self.get_posterior_data(eeg_data_uV, channel_names)
-    # features = extract_features(posterior_eeg, ...)

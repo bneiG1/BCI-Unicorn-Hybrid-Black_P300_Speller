@@ -58,9 +58,9 @@ class P300SpellerGUI(QWidget):
         self.pause_between_chars = pause_between_chars
         self.chars = chars if chars is not None else default_chars(self.rows, self.cols)
         self.stim_log = []
-        self.selected_text = ""  # Store selected characters
-        self.last_clicked_char = None  # Track last clicked character
-        self.last_pressed_char = None  # Track last pressed keyboard character
+        self.selected_text = ""  
+        self.last_clicked_char = None  
+        self.last_pressed_char = None  
         self.init_ui()
         self.timer = QTimer()
         self.timer.timeout.connect(self.flash_next)
@@ -193,7 +193,7 @@ class P300SpellerGUI(QWidget):
             self.pause_between_chars,
             getattr(self, "selected_model_name", self.model_selector.currentText() if hasattr(self, "model_selector") else "LDA")
         )
-        # Non-modal: show the dialog and connect to a slot for when options are updated
+        
         def on_options_applied():
             vals = dlg.get_values()
             old_model = getattr(self, 'selected_model_name', 'LDA')
@@ -213,12 +213,10 @@ class P300SpellerGUI(QWidget):
                 logging.info(f"Classifier changed from {old_model} to {self.selected_model_name}")
             if hasattr(self, "model_selector"):
                 self.model_selector.setCurrentText(self.selected_model_name)
-        # Try to connect to a signal if it exists, else fallback to modal
         if hasattr(dlg, 'applied'):
             dlg.applied.connect(on_options_applied)
             dlg.show()
         else:
-            # fallback: modal
             if dlg.exec_():
                 on_options_applied()
 
@@ -266,7 +264,6 @@ class P300SpellerGUI(QWidget):
             if self.target_text.strip():
                 self.target_char_idx += 1
                 if self.target_char_idx < len(self.target_text):
-                    # Add selected character to display
                     char = self.target_text[self.target_char_idx - 1].upper()
                     if char in self.chars:
                         self.selected_text += char
@@ -276,7 +273,6 @@ class P300SpellerGUI(QWidget):
                     QTimer.singleShot(self.pause_between_chars, self.flash_next)
                     return
                 else:
-                    # Add the last predicted/target character if not already added
                     if self.target_char_idx == len(self.target_text):
                         # Only show prediction if no manual key was pressed
                         if not self.last_pressed_char:
@@ -289,7 +285,6 @@ class P300SpellerGUI(QWidget):
                     self.start_btn.setEnabled(True)
                     self.stop_btn.setEnabled(False)
                     QMessageBox.information(self, "Done", "Flashing sequence complete!")
-                    # Show manual prediction alert after flashing complete
                     if self.last_pressed_char:
                         self.add_predicted_letter(self.last_pressed_char)
                         self.selected_textbox.setText(self.selected_text)  # Update textbox
@@ -303,7 +298,6 @@ class P300SpellerGUI(QWidget):
                 self.start_btn.setEnabled(True)
                 self.stop_btn.setEnabled(False)
                 QMessageBox.information(self, "Done", "Flashing sequence complete!")
-                # Show manual prediction alert after flashing complete
                 if self.last_pressed_char:
                     self.add_predicted_letter(self.last_pressed_char)
                     self.selected_textbox.setText(self.selected_text)  # Update textbox
@@ -472,6 +466,7 @@ class P300SpellerGUI(QWidget):
             self.board = None
         super().closeEvent(a0)
         # Forcefully exit the application
+        # nu scoate linia asta
         import os
         os._exit(0)
 
@@ -533,13 +528,9 @@ class P300SpellerGUI(QWidget):
         dlg.show()  # Non-modal
 
     def open_visualisation_dialog(self):
-        # Example: Use available data for visualization
-        # You may need to adapt this to your actual data pipeline
         if self.eeg_buffer is None or not hasattr(self, 'labels') or self.labels is None:
             QMessageBox.warning(self, "No Data", "No EEG data or labels available for visualization.")
             return
-        # Assume self.eeg_buffer: shape (n_channels, n_samples), self.labels: shape (n_epochs,)
-        # For demonstration, fake epoching if needed
         epochs = getattr(self, 'epochs', None)
         labels = getattr(self, 'labels', None)
         ch_names = getattr(self, 'eeg_names', None)
@@ -585,30 +576,24 @@ class P300SpellerGUI(QWidget):
             if suggestion:
                 self.target_text += " " + suggestion
                 self.selected_text += suggestion
+                if hasattr(self, 'selected_textbox'):
+                    self.selected_textbox.setText(self.selected_text)
                 self.update_lm_suggestions(self.target_text)
-                # Optionally, update the GUI to reflect the new context
 
     def handle_matrix_button(self):
         sender = self.sender()
         if sender is not None:
             char = sender.text()
-            # Add the selected character to the selected_text
             self.selected_text += char
             self.selected_textbox.setText(self.selected_text)
-            # Track the last clicked character for prediction
             self.last_clicked_char = char
-            # Optionally, log the selection or provide feedback
-            # For example, you could highlight the button or disable it
             sender.setStyleSheet('background-color: yellow;')
             sender.setEnabled(False)
-            # You can also emit a signal or call a callback here if needed
 
     def keyPressEvent(self, event):
         key = event.text().upper()
         if key in self.chars:
             self.last_pressed_char = key
-            # Optionally, provide immediate feedback (e.g., highlight)
-            # QMessageBox.information(self, "Key Pressed", f"You pressed: {key}")
         super().keyPressEvent(event)
 
     def add_predicted_letter(self, predicted_letter):
@@ -620,11 +605,8 @@ class P300SpellerGUI(QWidget):
 
     def get_predicted_letter(self):
         """Return the predicted letter based on your classification logic."""
-        # Example implementation: Use the most recent EEG data and a trained classifier
-        # Replace this with your actual prediction logic
         try:
             from data_processing.eeg_classification import predict_character_from_eeg
-            # Use the latest EEG buffer (self.eeg_buffer) and stim log (self.stim_log)
             if self.eeg_buffer is not None and len(self.stim_log) > 0:
                 predicted = predict_character_from_eeg(self.eeg_buffer, self.stim_log, self.chars)
                 if predicted and predicted in self.chars:

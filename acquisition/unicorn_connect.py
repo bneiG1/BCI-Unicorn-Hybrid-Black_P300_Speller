@@ -115,7 +115,6 @@ def get_board_data(board):
     validation_channel = BoardShim.get_other_channels(BoardIds.UNICORN_BOARD.value)
     timestamp_channel = BoardShim.get_timestamp_channel(BoardIds.UNICORN_BOARD.value)
     markers_channel = BoardShim.get_marker_channel(BoardIds.UNICORN_BOARD.value)
-    # Build header and print mapping
 
     eeg_names = ["Fp1", "Fp2", "C3", "C4", "Pz", "O1", "O2", "Fz"]
     for i, ch in enumerate(eeg_channels):
@@ -139,7 +138,6 @@ def get_board_data(board):
         ch_labels.append("Battery Level")
     if counter_channel is not None:
         ch_labels.append("Counter")
-    # Validation indicator may be a list
     if validation_channel is not None:
         if isinstance(validation_channel, list) and len(validation_channel) > 0:
             ch_labels.append("Validation Indicator")
@@ -196,9 +194,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # Ensure logs directory exists
     os.makedirs('logs', exist_ok=True)
-    # Use a single log file for the whole app, set in env or create if not set
     log_filename = os.environ.get('UNICORN_LOG_FILE')
     if not log_filename:
         import datetime

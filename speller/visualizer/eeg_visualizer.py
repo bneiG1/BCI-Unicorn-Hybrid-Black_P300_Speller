@@ -60,10 +60,7 @@ class EEGVisualizerDialog(QDialog):
     def update_plot(self, eeg_buffer):
         if eeg_buffer is None or not hasattr(eeg_buffer, 'shape') or eeg_buffer.shape[1] == 0:
             return
-        # Only plot the last 5 seconds
-        max_samples = int(self.sfreq * 5)
-        plot_data = eeg_buffer[:, -max_samples:] if eeg_buffer.shape[1] > max_samples else eeg_buffer
-        # --- Apply full preprocessing pipeline as in classification ---
+        plot_data = eeg_buffer
         try:
             # filtfilt requires input length > padlen (27 for 4th order elliptic)
             min_samples = 27
@@ -76,7 +73,7 @@ class EEGVisualizerDialog(QDialog):
             # Apply notch filter
             filtered = pipeline.notch_filter(filtered)
             # Downsample if needed (only if plotting at lower rate is desired)
-            # filtered = pipeline.downsample(filtered)
+            filtered = pipeline.downsample(filtered)
             processed_data = filtered
         except Exception as e:
             processed_data = plot_data[self.eeg_ch, :]
@@ -88,7 +85,7 @@ class EEGVisualizerDialog(QDialog):
             self.ax_eeg.plot(processed_data[i, :], label=label)
         self.ax_eeg.set_xlabel("Sample")
         self.ax_eeg.set_ylabel("Amplitude (uV)")
-        self.ax_eeg.set_title("EEG Channels (last 5s, filtered and notched)")
+        self.ax_eeg.set_title("EEG Channels (filtered and notched)")
         self.ax_eeg.legend(loc="upper right", fontsize="small")
         # Accelerometer
         if self.ax_accel:
@@ -99,7 +96,7 @@ class EEGVisualizerDialog(QDialog):
                 self.ax_accel.plot(plot_data[ch, :], label=label)
             self.ax_accel.set_xlabel("Sample")
             self.ax_accel.set_ylabel("Accel (a.u.)")
-            self.ax_accel.set_title("Accelerometer (last 5s)")
+            self.ax_accel.set_title("Accelerometer")
             self.ax_accel.legend(loc="upper right", fontsize="small")
         # Gyroscope
         if self.ax_gyro:
@@ -110,7 +107,7 @@ class EEGVisualizerDialog(QDialog):
                 self.ax_gyro.plot(plot_data[ch, :], label=label)
             self.ax_gyro.set_xlabel("Sample")
             self.ax_gyro.set_ylabel("Gyro (a.u.)")
-            self.ax_gyro.set_title("Gyroscope (last 5s)")
+            self.ax_gyro.set_title("Gyroscope")
             self.ax_gyro.legend(loc="upper right", fontsize="small")
         self.fig.tight_layout()
         self.canvas.draw()

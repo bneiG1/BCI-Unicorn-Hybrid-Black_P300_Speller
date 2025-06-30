@@ -29,9 +29,7 @@ MODEL_PATHS = {
     '1D CNN': 'models/cnn1d_model.h5',
 }
 
-# Ensure logs directory exists
 os.makedirs('logs', exist_ok=True)
-# Use a single log file for the whole app, set in env or create if not set
 log_filename = os.environ.get('UNICORN_LOG_FILE')
 if not log_filename:
     import datetime
@@ -62,7 +60,6 @@ def load_classifier(model_name='LDA'):
         from tensorflow.keras.models import load_model
         return load_model(model_path)
     elif model_name == 'SWLDA (sklearn)':
-        # Load tuple (lda, sfs) and return as a callable object
         lda, sfs = joblib.load(model_path)
         class SWLDAWrapper:
             def predict(self, X):
@@ -106,11 +103,9 @@ def classify_and_feedback(board, gui, pipeline, clf):
         while True:
             app.processEvents()
             if not gui.is_flashing:
-                # If flashing has ended, show prediction but keep session alive
                 max_idx = np.unravel_index(np.argmax(button_scores), button_scores.shape)
                 predicted_char = gui.buttons[max_idx[0]][max_idx[1]].text()
                 pred_labels.append(predicted_char)
-                # Try to get the true label if available
                 if hasattr(gui, 'target_text') and gui.target_text:
                     true_labels.append(gui.target_text[gui.target_char_idx-1] if gui.target_char_idx > 0 else gui.target_text[0])
                 # Log metrics
@@ -130,10 +125,10 @@ def classify_and_feedback(board, gui, pipeline, clf):
                 logging.info(f"Predicted character: {predicted_char}")
                 from PyQt5.QtWidgets import QMessageBox
                 QMessageBox.information(gui, "Prediction", f"Predicted letter: {predicted_char}")
-                # Optionally, stop acquisition worker in GUI if it exists
                 if hasattr(gui, 'acquisition_worker'):
                     try:
                         gui.acquisition_worker.stop()
+                        del gui.acquisition_worker
                     except Exception:
                         pass
                 # Wait for the window to close
@@ -180,7 +175,6 @@ def classify_and_feedback(board, gui, pipeline, clf):
                 except Exception as e:
                     logging.error(f"Signal processing/classification error for stimulus {stim}: {e}")
                 last_stim_idx += 1
-            # Track selection time
             if selection_start and gui.target_text and gui.target_char_idx > 0 and len(pred_labels) < gui.target_char_idx:
                 selection_times.append(time.time() - selection_start)
                 selection_start = time.time()
@@ -188,7 +182,6 @@ def classify_and_feedback(board, gui, pipeline, clf):
         logging.info("Interrupted by user. Exiting...")
     except Exception as e:
         logging.critical(f"Fatal error in real-time loop: {e}")
-    # Cleanup is now handled after the GUI is closed in main
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
@@ -211,7 +204,6 @@ if __name__ == '__main__':
             except Exception:
                 pass
         sys.exit(1)
-    # Use selected model from GUI, fallback to LDA if not set
     model_name = getattr(gui, 'selected_model_name', 'LDA')
     clf = load_classifier(model_name)
     try:

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import mne
-
+# TODO: 
 def plot_erp(epochs, labels, ch_names=None, sfreq=1, tmin=0, tmax=1, target_label=1, non_target_label=0):
     """
     Plot averaged ERPs for target and non-target epochs.

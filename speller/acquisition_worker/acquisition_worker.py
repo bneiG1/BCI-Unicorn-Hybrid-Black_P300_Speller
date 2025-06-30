@@ -40,4 +40,3 @@ class AcquisitionWorker(QThread):
 
     def stop(self):
         self._running = False
-        # Do not call self.wait() here

@@ -23,7 +23,7 @@ class TestEEGClassification(unittest.TestCase):
         clf.fit(X, self.labels)
         y_pred = clf.predict(X)
         acc = np.mean(y_pred == self.labels)
-        self.assertGreater(acc, 0.7)  # Should be able to separate synthetic classes
+        self.assertGreater(acc, 0.7)  
 
 if __name__ == "__main__":
     unittest.main()

@@ -69,7 +69,6 @@ class TestFullPipeline(unittest.TestCase):
         X_proc = np.array([pipeline.bandpass_filter(epoch) for epoch in X])
         feats = extract_features(X_proc, self.sampling_rate_Hz)
         acc, prec, rec, f1, itr = train_evaluate_lda(feats, y, trial_time=1.0)
-        # Even with artifacts, pipeline should retain some discriminability
         self.assertGreater(acc, 0.5)
         self.assertGreater(f1, 0.5)
 
