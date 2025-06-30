@@ -12,14 +12,11 @@ import joblib
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.svm import SVC
 from sklearn.feature_selection import SequentialFeatureSelector
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv1D, Dense, Flatten, Dropout, MaxPooling1D
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.optimizers import Adam
 
 # Local imports
 from data_processing.eeg_preprocessing import EEGPreprocessingPipeline
 from data_processing.eeg_features import extract_features
+from data_processing.csv_npz_utils import get_latest_file
 
 # Optional SWLDA
 try:
@@ -28,71 +25,59 @@ try:
 except ImportError:
     swlda_available = False
 
-# Setup
-# TODO: converteste csv-urile in npz dupa secventa de calibrare
-DATA_PATH = 'data/sample_eeg_data.npz'
-MODELS_DIR = 'models'
-os.makedirs(MODELS_DIR, exist_ok=True)
+def train_model_from_npz(npz_path, model_name='LDA'):
+    """Train a specific model from an NPZ file and save it."""
+    data = np.load(npz_path)
+    X = data['X']
+    y = data['y']
+    sampling_rate = data['sampling_rate_Hz'].item()
 
-# Load EEG data
-data = np.load(DATA_PATH)
-X = data['X']
-y = data['y']
-sampling_rate = data['sampling_rate_Hz'].item()
+    pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=sampling_rate)
+    X_proc = np.array([pipeline.bandpass_filter(epoch) for epoch in X])
+    features = extract_features(X_proc, sampling_rate)
 
-# Preprocessing pipeline
-pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=sampling_rate)
-X_proc = np.array([pipeline.bandpass_filter(epoch) for epoch in X])
+    MODELS_DIR = 'models'
+    os.makedirs(MODELS_DIR, exist_ok=True)
 
-# Feature extraction
-features = extract_features(X_proc, sampling_rate)
+    model_path = f'{MODELS_DIR}/{model_name.lower().replace(" ", "_")}_model.joblib'
+    clf = None
 
-# ----- LDA -----
-lda_model = LinearDiscriminantAnalysis().fit(features, y)
-joblib.dump(lda_model, f'{MODELS_DIR}/lda_model.joblib')
-print('[+] LDA model saved.')
+    if model_name == 'LDA':
+        clf = LinearDiscriminantAnalysis().fit(features, y)
+        joblib.dump(clf, model_path)
+    elif model_name == 'SVM (RBF)':
+        clf = SVC(kernel='rbf', probability=True).fit(features, y)
+        joblib.dump(clf, model_path)
+    elif model_name == '1D CNN':
+        try:
+            from tensorflow.keras.models import Sequential
+            from tensorflow.keras.layers import Conv1D, Dense, Flatten, Dropout, MaxPooling1D
+            from tensorflow.keras.utils import to_categorical
+            from tensorflow.keras.optimizers import Adam
+        except ImportError:
+            print("[!] TensorFlow not available. Cannot train 1D CNN model.")
+            return None
 
-# ----- SVM (RBF) -----
-svm_model = SVC(kernel='rbf', probability=True)
-svm_model.fit(features, y)
-joblib.dump(svm_model, f'{MODELS_DIR}/svm_rbf_model.joblib')
-print('[+] SVM (RBF) model saved.')
+        model_path = f'{MODELS_DIR}/cnn1d_model.h5'
+        X_cnn = features[..., np.newaxis]
+        y_cat = to_categorical(y)
+        num_classes = y_cat.shape[1]
 
-# ----- SWLDA (if available) -----
-if swlda_available:
-    swlda_model = SWLDA()
-    swlda_model.fit(features, y)
-    joblib.dump(swlda_model, f'{MODELS_DIR}/swlda_model.joblib')
-    print('[+] SWLDA model saved.')
-else:
-    print('[!] SWLDA not available. Skipping...')
+        clf = Sequential([
+            Conv1D(32, 3, activation='relu', input_shape=(X_cnn.shape[1], 1)),
+            MaxPooling1D(2),
+            Dropout(0.2),
+            Conv1D(64, 3, activation='relu'),
+            MaxPooling1D(2),
+            Flatten(),
+            Dense(64, activation='relu'),
+            Dropout(0.2),
+            Dense(num_classes, activation='softmax')
+        ])
+        clf.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+        clf.fit(X_cnn, y_cat, epochs=20, batch_size=32, verbose=1)
+        clf.save(model_path)
 
-# ----- SWLDA-like (SFS + LDA) -----
-lda_swlda = LinearDiscriminantAnalysis()
-sfs = SequentialFeatureSelector(lda_swlda, n_features_to_select=10, direction='forward')
-sfs.fit(features, y)
-lda_swlda.fit(sfs.transform(features), y)
-joblib.dump((lda_swlda, sfs), f'{MODELS_DIR}/swlda_sklearn_model.joblib')
-print('[+] SWLDA-like model (SFS+LDA) saved.')
-
-# ----- 1D CNN -----
-X_cnn = features[..., np.newaxis]
-y_cat = to_categorical(y)
-num_classes = y_cat.shape[1]
-
-cnn_model = Sequential([
-    Conv1D(32, 3, activation='relu', input_shape=(X_cnn.shape[1], 1)),
-    MaxPooling1D(2),
-    Dropout(0.2),
-    Conv1D(64, 3, activation='relu'),
-    MaxPooling1D(2),
-    Flatten(),
-    Dense(64, activation='relu'),
-    Dropout(0.2),
-    Dense(num_classes, activation='softmax')
-])
-
-cnn_model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
-cnn_model.fit(X_cnn, y_cat, epochs=20, batch_size=32, verbose=1)
-cnn_model.save(f'{MODELS_DIR}/cnn1d_model.h5')
-print('[+] 1D CNN model saved.')
+    if clf is not None:
+        print(f'[+] {model_name} model saved to {model_path}.')
+    return clf

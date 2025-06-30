@@ -13,6 +13,8 @@ import joblib
 from config.config_loader import config
 import math
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from data_processing.csv_npz_utils import convert_csv_to_npz, get_latest_file
+from data_processing.train_and_save_models import train_model_from_npz
 
 # --- CONFIGURATION ---
 SFREQ = config["sampling_rate_Hz"]
@@ -47,14 +49,35 @@ logging.basicConfig(
     ]
 )
 
-def load_classifier(model_name='LDA'):
-    """Load the trained classifier based on the selected model name."""
+def load_classifier(model_name='LDA', gui=None, board=None):
+    """Load the trained classifier, or run calibration to train a new one."""
     model_path = MODEL_PATHS.get(model_name, MODEL_PATHS['LDA'])
+
     if not os.path.exists(model_path):
-        logging.critical(f"Trained model not found: {model_path}.\n"
-                         f"Please train and save your classifier before running real-time BCI.\n"
-                         f"You can do this with: python -m data_processing.train_and_save_models")
-        sys.exit(1)
+        logging.warning(f"Trained model not found: {model_path}.")
+        if gui:
+            from PyQt5.QtWidgets import QMessageBox
+            reply = QMessageBox.question(gui, 'No Model Found',
+                                         "No pre-trained model found. Would you like to run a calibration sequence to train a new one?",
+                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                logging.info("Starting calibration sequence.")
+                # Run calibration, which will save a CSV
+                run_calibration(gui, board, model_name)
+                # After calibration, the model should be trained and saved by run_calibration
+                if os.path.exists(model_path):
+                    logging.info(f"Successfully trained new {model_name} model.")
+                    return load_classifier(model_name, gui, board)
+                else:
+                    logging.error("Failed to train new model.")
+                    return None
+            else:
+                logging.error("User declined calibration. Cannot proceed without a model.")
+                return None
+        else:
+            logging.error("Cannot ask for calibration without a GUI. Please train a model first.")
+            return None
+
     logging.info(f"Loading classifier from {model_path}")
     if model_name == '1D CNN':
         from tensorflow.keras.models import load_model
@@ -74,6 +97,33 @@ def load_classifier(model_name='LDA'):
     else:
         # Default fallback
         return joblib.load(model_path)
+
+
+def run_calibration(gui, board, model_name):
+    """Run the P300 speller calibration sequence and train only the selected model."""
+    logging.info("Calibration started. Please focus on the target characters.")
+    gui.is_calibration = True
+    gui.target_text = "CALIBRATE"  # Example calibration word
+    gui.reset_speller()
+    # This will run the flashing sequence and data acquisition via the GUI's acquisition_worker
+    classify_and_feedback(board, gui, None, None)  # clf is None during calibration
+    gui.is_calibration = False
+    logging.info("Calibration sequence finished.")
+    # Find the latest CSV and convert to NPZ
+    csv_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+    latest_csv = get_latest_file(csv_dir, extension=".csv")
+    if not latest_csv:
+        logging.error("Calibration data not found.")
+        return
+    npz_path = os.path.splitext(latest_csv)[0] + '.npz'
+    convert_csv_to_npz(latest_csv, npz_path)
+    logging.info(f"Converted {latest_csv} to {npz_path}")
+    # Train only the selected model
+    clf = train_model_from_npz(npz_path, model_name)
+    if clf:
+        logging.info(f"Successfully trained {model_name} model after calibration.")
+    else:
+        logging.error(f"Failed to train {model_name} model after calibration.")
 
 def classify_and_feedback(board, gui, pipeline, clf):
     """Main real-time classification and feedback loop."""
@@ -98,11 +148,30 @@ def classify_and_feedback(board, gui, pipeline, clf):
         while not gui.is_flashing:
             app.processEvents()
             time.sleep(0.01)
+
+        if clf is None:
+            model_name = getattr(gui, 'selected_model_name', 'LDA')
+            logging.info(f"Flashing started. Loading model: {model_name}")
+            clf = load_classifier(model_name, gui, board)
+            if not clf:
+                logging.critical("Classifier could not be loaded or trained. Stopping.")
+                # Optionally, inform the user via GUI
+                if gui:
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.critical(gui, "Error", "Failed to load the classifier model. The application cannot continue.")
+                return # Exit the function if model loading fails
+
         logging.info("Flashing started. Beginning real-time classification.")
         selection_start = time.time()
         while True:
             app.processEvents()
             if not gui.is_flashing:
+                if gui.is_calibration:
+                    logging.info("Calibration flashing finished. Data saved.")
+                    if hasattr(gui, 'acquisition_worker'):
+                        gui.acquisition_worker.stop()
+                    break # Exit loop after calibration
+
                 max_idx = np.unravel_index(np.argmax(button_scores), button_scores.shape)
                 predicted_char = gui.buttons[max_idx[0]][max_idx[1]].text()
                 pred_labels.append(predicted_char)
@@ -149,6 +218,12 @@ def classify_and_feedback(board, gui, pipeline, clf):
             while len(gui.stim_log) > last_stim_idx:
                 stim = gui.stim_log[last_stim_idx]
                 stim_time, stim_type, stim_idx = stim
+
+                # During calibration, we just log and continue
+                if gui.is_calibration:
+                    last_stim_idx += 1
+                    continue
+
                 try:
                     sample_idx = int((stim_time - gui.stim_log[0][0]) * SFREQ)
                     start_idx = sample_idx + int(EPOCH_TMIN * SFREQ)
@@ -205,7 +280,8 @@ if __name__ == '__main__':
                 pass
         sys.exit(1)
     model_name = getattr(gui, 'selected_model_name', 'LDA')
-    clf = load_classifier(model_name)
+    clf = None # Defer loading until flashing starts
+
     try:
         classify_and_feedback(board, gui, pipeline, clf)
     except Exception as e:

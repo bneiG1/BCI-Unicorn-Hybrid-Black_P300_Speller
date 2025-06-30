@@ -32,6 +32,7 @@ from .acquisition_worker.acquisition_worker import AcquisitionWorker
 from .visualizer.eeg_visualizer import EEGVisualizerDialog
 from .language_model import LanguageModel
 from speller.visualizer.eeg_visualization import plot_erp, plot_topomap, plot_confusion_and_metrics
+from data_processing.csv_npz_utils import convert_csv_to_npz, get_latest_file
 
 
 class P300SpellerGUI(QWidget):
@@ -70,6 +71,16 @@ class P300SpellerGUI(QWidget):
         self.board = None
         self.acquisition_running = False
         self.eeg_buffer = None  # Will be a numpy array (channels x samples)
+
+        # --- Calibration check on first run ---
+        import glob
+        npz_files = glob.glob(os.path.join("data", "*.npz"))
+        if not npz_files:
+            QMessageBox.information(
+                self,
+                "Calibration Required",
+                "No calibration data found. Please open the Options menu and enter a word in the Target Text area to run a calibration sequence."
+            )
 
     def init_ui(self):
         self.setWindowTitle("P300 Speller")
@@ -421,6 +432,29 @@ class P300SpellerGUI(QWidget):
                 QMessageBox.warning(
                     self, "Acquisition", f"Error stopping EEG acquisition: {e}"
                 )
+        # --- CSV to NPZ conversion and update latest data ---
+        try:
+            if hasattr(self, "csv_filename") and os.path.exists(self.csv_filename):
+                # Use default sampling rate or get from config/board
+                from config.config_loader import config
+                sampling_rate = config.get("sampling_rate_Hz", 256)
+                npz_path = convert_csv_to_npz(self.csv_filename, sampling_rate=sampling_rate)
+                self.latest_npz = npz_path
+                print(f"[INFO] Converted CSV to NPZ: {npz_path}")
+            else:
+                self.latest_npz = get_latest_file("data")
+        except Exception as e:
+            print(f"[EEG] CSV to NPZ conversion failed: {e}")
+            self.latest_npz = get_latest_file("data")
+        try:
+            if self.latest_npz and os.path.exists(self.latest_npz):
+                data = np.load(self.latest_npz)
+                self.X = data['X']
+                self.y = data['y']
+                self.sampling_rate = data['sampling_rate_Hz'].item() if 'sampling_rate_Hz' in data else sampling_rate
+                print(f"[INFO] Loaded latest NPZ: {self.latest_npz}")
+        except Exception as e:
+            print(f"[EEG] Loading latest NPZ failed: {e}")
         try:
             from data_processing.eeg_preprocessing import epoch_eeg_data
             from data_processing.eeg_classification import extract_labels_from_stim_log
