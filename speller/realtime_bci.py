@@ -194,12 +194,34 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     gui = P300SpellerGUI()
     gui.show()
-    # Wait for user to select model in options dialog if desired
-    app.processEvents()
+    logging.info("Please connect to the headset using the GUI window.")
+    # Wait for the GUI to connect to the board
+    while getattr(gui, 'board', None) is None:
+        app.processEvents()
+        time.sleep(0.1)
+    board = gui.board
+    logging.info("Using already connected headset from GUI.")
+    try:
+        pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=SFREQ, downsample_to_Hz=DOWNSAMPLED_FREQ)
+    except Exception as e:
+        logging.critical(f"Failed to initialize preprocessing pipeline: {e}")
+        if board:
+            try:
+                release_resources(board)
+            except Exception:
+                pass
+        sys.exit(1)
     # Use selected model from GUI, fallback to LDA if not set
     model_name = getattr(gui, 'selected_model_name', 'LDA')
     clf = load_classifier(model_name)
-    pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=SFREQ)
-    board = connect_to_unicorn()
-    classify_and_feedback(board, gui, pipeline, clf)
+    try:
+        classify_and_feedback(board, gui, pipeline, clf)
+    except Exception as e:
+        logging.critical(f"Fatal error in main: {e}")
+        if board:
+            try:
+                release_resources(board)
+            except Exception:
+                pass
+        sys.exit(1)
     sys.exit(app.exec_())

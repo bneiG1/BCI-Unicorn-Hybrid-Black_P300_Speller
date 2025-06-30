@@ -142,15 +142,9 @@ class P300SpellerGUI(QWidget):
             try:
                 self.board = connect_to_unicorn()
                 if self.board:
-                    # Check if using DummyBoardShim
-                    if self.board.__class__.__name__ == "DummyBoardShim":
-                        QMessageBox.information(
-                            self, "Connection", "No headset found. You will use a dummy headset for simulation."
-                        )
-                    else:
-                        QMessageBox.information(
-                            self, "Connection", "Successfully connected to the headset!"
-                        )
+                    QMessageBox.information(
+                        self, "Connection", "Successfully connected to the headset!"
+                    )
                     self.connect_btn.setText("Disconnect")
                 else:
                     QMessageBox.critical(
@@ -192,6 +186,7 @@ class P300SpellerGUI(QWidget):
         # Non-modal: show the dialog and connect to a slot for when options are updated
         def on_options_applied():
             vals = dlg.get_values()
+            old_model = getattr(self, 'selected_model_name', 'LDA')
             if vals["size"] != self.rows:
                 self.set_matrix_size(vals["size"])
             self.flash_duration = vals["flash"]
@@ -203,6 +198,9 @@ class P300SpellerGUI(QWidget):
             self.target_text = vals["target_text"]
             self.pause_between_chars = vals["pause_between_chars"]
             self.selected_model_name = vals["model_name"]
+            if self.selected_model_name != old_model:
+                import logging
+                logging.info(f"Classifier changed from {old_model} to {self.selected_model_name}")
             if hasattr(self, "model_selector"):
                 self.model_selector.setCurrentText(self.selected_model_name)
         # Try to connect to a signal if it exists, else fallback to modal
