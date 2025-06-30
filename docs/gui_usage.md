@@ -1,5 +1,7 @@
 # GUI Usage Guide
 
+For a full system overview and quick-start, see [README.md](../README.md) and [overview.md](overview.md).
+
 ## Launching the GUI
 - Run `python .\p300_speller_gui.py` to start the speller interface.
 
@@ -16,3 +18,4 @@
 
 ## Troubleshooting
 - See [troubleshooting.md](troubleshooting.md) for common issues and solutions.
+- For device and model errors, see the FAQ in [README.md](../README.md).

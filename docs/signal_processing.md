@@ -1,5 +1,7 @@
 # Signal Processing Pipeline
 
+This document describes the EEG signal processing steps used in the P300 Speller BCI system. For a high-level overview, see [overview.md](overview.md). For classification details, see [classification.md](classification.md).
+
 ## Processing Order
 Filtering → Artifact Removal → Downsampling → Epoching → Baseline Correction → Feature Extraction
 
@@ -18,5 +20,12 @@ Filtering → Artifact Removal → Downsampling → Epoching → Baseline Correc
 
 ## Quality Control
 - Reject or flag epochs with excessive amplitude (e.g., >100 μV)
+
+## Tips & Best Practices
+- Validate input data dimensions and types at each stage.
+- Document all units and signal processing parameters.
+- Maintain consistent sampling rates throughout the pipeline.
+- Log all major signal processing steps and parameter choices.
+- See [troubleshooting.md](troubleshooting.md) for common issues.
 
 See also: [classification.md](classification.md) for how features are used in P300 detection.

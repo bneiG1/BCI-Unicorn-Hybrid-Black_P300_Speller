@@ -1,5 +1,7 @@
 # Real-Time Processing and Optimization
 
+For a full system overview, see [overview.md](overview.md). For pipeline details, see [signal_processing.md](signal_processing.md).
+
 ## Real-Time Loop
 - Continuous data acquisition from Unicorn Hybrid Black
 - Low-latency signal processing and classification
@@ -22,4 +24,4 @@
 - Information Transfer Rate (bits/min)
 - System responsiveness (user-perceived delay)
 
-See [overview.md](overview.md) for the full system architecture.
+See [overview.md](overview.md) for the full system architecture and [troubleshooting.md](troubleshooting.md) for performance tips.

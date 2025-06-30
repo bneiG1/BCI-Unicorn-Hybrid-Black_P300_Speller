@@ -1,5 +1,31 @@
 # BCI-Unicorn-Hybrid-Black_P300_Speller
 
+A real-time P300 Speller BCI system for the Unicorn Hybrid Black EEG device. Enables text input via brainwave analysis by detecting P300 event-related potentials (ERPs) in response to user attention on a visual character matrix.
+
+---
+
+## Key Features
+- **Real-time P300 detection** (250–500 ms post-stimulus)
+- **Low-latency signal processing pipeline**: Filtering, artifact removal, epoching, feature extraction
+- **Flexible GUI**: Matrix-based speller with customizable paradigms
+- **High-accuracy classification**: LDA, SVM, and optional 1D CNN
+- **Visualization tools**: ERP, topomaps, confusion matrices
+- **Extensive documentation and unit tests**
+
+---
+
+## Requirements & Installation
+- Python 3.8+
+- [MNE-Python](https://mne.tools/), [scikit-learn](https://scikit-learn.org/), [PyQt5](https://pypi.org/project/PyQt5/), [joblib](https://joblib.readthedocs.io/), [numpy](https://numpy.org/), [matplotlib](https://matplotlib.org/), [seaborn](https://seaborn.pydata.org/)
+- For device use: Unicorn Hybrid Black SDK/driver
+- Install dependencies:
+  ```pwsh
+  python -m pip install -r requirements.txt
+  # Or install manually as needed
+  ```
+
+---
+
 ## High-Level System Diagram
 
 - **unicorn_connect.py**: Handles device connection and streaming.
@@ -94,6 +120,17 @@ python -m unittest discover -s tests
 
 ---
 
+## Documentation
+- [System Overview](docs/overview.md)
+- [Signal Processing Pipeline](docs/signal_processing.md)
+- [P300 Detection & Classification](docs/classification.md)
+- [GUI Usage Guide](docs/gui_usage.md)
+- [Real-Time Processing](docs/realtime_processing.md)
+- [Troubleshooting & FAQ](docs/troubleshooting.md)
+- [References](docs/references.md)
+
+---
+
 ## Screenshots
 
 ![P300 Speller GUI Example](docs/p300_speller_gui_screenshot.png)
@@ -172,20 +209,16 @@ python -m unittest discover -s tests
 
 ---
 
-## Pre-trained Models
-
-- **Download Example Pre-trained Model:**
-  - [Download LDA model (trained on sample data)](https://github.com/your-repo/bci-p300-speller/releases/download/v0.1.0/lda_model_sample.joblib)
-  - Place the downloaded file as `lda_model.joblib` in your project directory.
-- **Script to Download Pre-trained Model:**
-  ```python
-  import urllib.request
-  url = 'https://github.com/your-repo/bci-p300-speller/releases/download/v0.1.0/lda_model_sample.joblib'
-  urllib.request.urlretrieve(url, 'lda_model.joblib')
-  print('Pre-trained model downloaded as lda_model.joblib')
-  ```
-- **Or train your own:**
-  - Use `eeg_classification.py` with your data, then save with `joblib.dump(clf, 'lda_model.joblib')`.
+## How to Cite
+If you use this codebase in academic work, please cite as:
+```
+@misc{bci_unicorn_p300_speller,
+  title={BCI-Unicorn-Hybrid-Black P300 Speller},
+  author={Your Name},
+  year={2025},
+  howpublished={\url{https://github.com/bneiG1/BCI-Unicorn-Hybrid-Black_P300_Speller}}
+}
+```
 
 ---
 

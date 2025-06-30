@@ -1,5 +1,7 @@
 # Troubleshooting & FAQ
 
+For installation and usage, see [README.md](../README.md). For technical details, see [overview.md](overview.md) and [signal_processing.md](signal_processing.md).
+
 ## Common Issues
 
 ### GUI does not launch or crashes
