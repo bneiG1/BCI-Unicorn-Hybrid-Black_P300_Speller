@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 from .acquisition_worker.acquisition_worker import AcquisitionWorker
 from .visualizer.eeg_visualizer import EEGVisualizerDialog
 from .language_model import LanguageModel
+from speller.visualizer.eeg_visualization import plot_erp, plot_topomap, plot_confusion_and_metrics
 
 
 class P300SpellerGUI(QWidget):
@@ -58,6 +59,8 @@ class P300SpellerGUI(QWidget):
         self.chars = chars if chars is not None else default_chars(self.rows, self.cols)
         self.stim_log = []
         self.selected_text = ""  # Store selected characters
+        self.last_clicked_char = None  # Track last clicked character
+        self.last_pressed_char = None  # Track last pressed keyboard character
         self.init_ui()
         self.timer = QTimer()
         self.timer.timeout.connect(self.flash_next)
@@ -70,16 +73,20 @@ class P300SpellerGUI(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("P300 Speller")
-        self.setFixedSize(1000, 800)  # Set a fixed window size to prevent resizing
+        self.setFixedSize(1200, 1000)  # Set a fixed window size to prevent resizing
         from PyQt5.QtWidgets import QMenuBar, QWidget, QLabel, QLineEdit, QComboBox
 
         main_layout = QVBoxLayout()
         menubar = QMenuBar(self)
         main_layout.setMenuBar(menubar)
+
+        # --- Display for predicted/selected characters ---
         self.selected_textbox = QLineEdit(self)
         self.selected_textbox.setReadOnly(True)
-        self.selected_textbox.setStyleSheet("font-size: 18px; color: green; background: #f0f0f0;")
+        self.selected_textbox.setPlaceholderText("Predicted/Selected Characters")
+        self.selected_textbox.setText(self.selected_text)
         main_layout.addWidget(self.selected_textbox)
+
         board_widget = QWidget(self)
         board_widget.setStyleSheet("background-color: black;")
         self.grid = QGridLayout()
@@ -115,6 +122,9 @@ class P300SpellerGUI(QWidget):
         self.visualizer_btn = QPushButton("Visualizer")
         self.visualizer_btn.clicked.connect(self.open_visualizer)
         controls.addWidget(self.visualizer_btn)
+        self.visualisation_btn = QPushButton("Visualisation")
+        self.visualisation_btn.clicked.connect(self.open_visualisation_dialog)
+        controls.addWidget(self.visualisation_btn)
         main_layout.addLayout(controls)
         self.setLayout(main_layout)
         self.feedback_mode = "color"
@@ -260,7 +270,7 @@ class P300SpellerGUI(QWidget):
                     char = self.target_text[self.target_char_idx - 1].upper()
                     if char in self.chars:
                         self.selected_text += char
-                        self.selected_textbox.setText(self.selected_text)
+                        # self.selected_textbox.setText(self.selected_text)
                     self.prepare_target_flash_sequence()
                     self.flash_idx = 0
                     QTimer.singleShot(self.pause_between_chars, self.flash_next)
@@ -268,15 +278,23 @@ class P300SpellerGUI(QWidget):
                 else:
                     # Add the last predicted/target character if not already added
                     if self.target_char_idx == len(self.target_text):
-                        predicted_letter = self.get_predicted_letter()
-                        if predicted_letter:
-                            self.add_predicted_letter(predicted_letter)
+                        # Only show prediction if no manual key was pressed
+                        if not self.last_pressed_char:
+                            predicted_letter = self.get_predicted_letter()
+                            if predicted_letter:
+                                self.add_predicted_letter(predicted_letter)
                     unflash(self.buttons, self.rows, self.cols, keep_target=False)
                     self.timer.stop()
                     self.is_flashing = False
                     self.start_btn.setEnabled(True)
                     self.stop_btn.setEnabled(False)
                     QMessageBox.information(self, "Done", "Flashing sequence complete!")
+                    # Show manual prediction alert after flashing complete
+                    if self.last_pressed_char:
+                        self.add_predicted_letter(self.last_pressed_char)
+                        self.selected_textbox.setText(self.selected_text)  # Update textbox
+                        QMessageBox.information(self, "Predicted", f"Predicted: {self.last_pressed_char}")
+                        self.last_pressed_char = None
                     return
             else:
                 unflash(self.buttons, self.rows, self.cols, keep_target=False)
@@ -285,6 +303,16 @@ class P300SpellerGUI(QWidget):
                 self.start_btn.setEnabled(True)
                 self.stop_btn.setEnabled(False)
                 QMessageBox.information(self, "Done", "Flashing sequence complete!")
+                # Show manual prediction alert after flashing complete
+                if self.last_pressed_char:
+                    self.add_predicted_letter(self.last_pressed_char)
+                    self.selected_textbox.setText(self.selected_text)  # Update textbox
+                    QMessageBox.information(self, "Predicted", f"Predicted: {self.last_pressed_char}")
+                    self.last_pressed_char = None
+                else:
+                    predicted_letter = self.get_predicted_letter()
+                    if predicted_letter:
+                        self.add_predicted_letter(predicted_letter)
                 return
         stim_type, idx = self.flash_sequence[self.flash_idx]
         self.flash(stim_type, idx)
@@ -399,6 +427,23 @@ class P300SpellerGUI(QWidget):
                 QMessageBox.warning(
                     self, "Acquisition", f"Error stopping EEG acquisition: {e}"
                 )
+        try:
+            from data_processing.eeg_preprocessing import epoch_eeg_data
+            from data_processing.eeg_classification import extract_labels_from_stim_log
+            epoch_length = 1.0  # seconds
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            if self.eeg_buffer is not None and self.eeg_buffer.shape[1] > 0 and len(self.stim_log) > 0:
+                epochs = epoch_eeg_data(self.eeg_buffer, self.stim_log, sfreq, epoch_length=epoch_length)
+                labels = extract_labels_from_stim_log(self.stim_log, epochs.shape[0])
+                self.epochs = epochs
+                self.labels = labels
+                try:
+                    from data_processing.eeg_classification import predict_epochs
+                    self.y_pred = predict_epochs(epochs)
+                except Exception:
+                    self.y_pred = None
+        except Exception as e:
+            print(f"[EEG] Real epoching/label extraction failed: {e}")
 
     def handle_acquisition_error(self, msg):
         QMessageBox.warning(self, "Acquisition", f"EEG acquisition error: {msg}")
@@ -487,6 +532,31 @@ class P300SpellerGUI(QWidget):
         dlg = EEGVisualizerDialog(self.eeg_buffer, self.eeg_names, self, sfreq)
         dlg.show()  # Non-modal
 
+    def open_visualisation_dialog(self):
+        # Example: Use available data for visualization
+        # You may need to adapt this to your actual data pipeline
+        if self.eeg_buffer is None or not hasattr(self, 'labels') or self.labels is None:
+            QMessageBox.warning(self, "No Data", "No EEG data or labels available for visualization.")
+            return
+        # Assume self.eeg_buffer: shape (n_channels, n_samples), self.labels: shape (n_epochs,)
+        # For demonstration, fake epoching if needed
+        epochs = getattr(self, 'epochs', None)
+        labels = getattr(self, 'labels', None)
+        ch_names = getattr(self, 'eeg_names', None)
+        sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+        tmin, tmax = 0, self.eeg_buffer.shape[1] / sfreq if self.eeg_buffer is not None else (0, 1)
+        if epochs is not None and labels is not None:
+            # Plot ERP
+            plot_erp(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
+            # Plot Topomap
+            plot_topomap(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
+            # Optionally, plot confusion matrix if predictions are available
+            y_pred = getattr(self, 'y_pred', None)
+            if y_pred is not None:
+                plot_confusion_and_metrics(labels, y_pred)
+        else:
+            QMessageBox.warning(self, "No Epochs", "No epoched data available for visualization.")
+
     def update_eeg_buffer(self, new_data):
         if new_data is not None and new_data.shape[1] > 0:
             if self.eeg_buffer is None or self.eeg_buffer.shape[1] == 0:
@@ -515,24 +585,38 @@ class P300SpellerGUI(QWidget):
             if suggestion:
                 self.target_text += " " + suggestion
                 self.selected_text += suggestion
-                self.selected_textbox.setText(self.selected_text)
                 self.update_lm_suggestions(self.target_text)
                 # Optionally, update the GUI to reflect the new context
 
     def handle_matrix_button(self):
         sender = self.sender()
-        if isinstance(sender, QPushButton):
+        if sender is not None:
             char = sender.text()
-            if char and char.strip():
-                self.selected_text += char
-                self.selected_textbox.setText(self.selected_text)
-                # Optionally, you can also update target_text or trigger other logic if needed
+            # Add the selected character to the selected_text
+            self.selected_text += char
+            self.selected_textbox.setText(self.selected_text)
+            # Track the last clicked character for prediction
+            self.last_clicked_char = char
+            # Optionally, log the selection or provide feedback
+            # For example, you could highlight the button or disable it
+            sender.setStyleSheet('background-color: yellow;')
+            sender.setEnabled(False)
+            # You can also emit a signal or call a callback here if needed
+
+    def keyPressEvent(self, event):
+        key = event.text().upper()
+        if key in self.chars:
+            self.last_pressed_char = key
+            # Optionally, provide immediate feedback (e.g., highlight)
+            # QMessageBox.information(self, "Key Pressed", f"You pressed: {key}")
+        super().keyPressEvent(event)
 
     def add_predicted_letter(self, predicted_letter):
         """Add the predicted letter to the selected area in the GUI (QLineEdit)."""
         if predicted_letter and predicted_letter in self.chars:
             self.selected_text += predicted_letter
-            self.selected_textbox.setText(self.selected_text)
+            if hasattr(self, 'selected_textbox'):
+                self.selected_textbox.setText(self.selected_text)
 
     def get_predicted_letter(self):
         """Return the predicted letter based on your classification logic."""
