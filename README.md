@@ -133,11 +133,13 @@ python -m unittest discover -s tests
 
 ## Screenshots
 
-![P300 Speller GUI Example](docs/p300_speller_gui_screenshot.png)
+![P300 Speller GUI Example](docs/imgs/image.png)
 
-*If you have run the GUI, you can take a screenshot and save it as `docs/p300_speller_gui_screenshot.png` to display it here. For a video demo, consider uploading a short screen recording to YouTube and linking it below:*
+![P300 Speller GUI Options Example](docs/imgs/image2.png)
 
-[Watch a video demo on YouTube](https://youtu.be/your-demo-link)
+![P300 Speller GUI Graphs Example](docs/imgs/image3.png)
+
+
 
 ---
 
@@ -283,16 +285,6 @@ GUI Feedback
 
 ---
 
-## Real-Time Latency Benchmarks
-
-| Hardware/OS                | Trials per Character | Average End-to-End Latency |
-|---------------------------|---------------------|---------------------------|
-| Windows 10, i7, 16GB RAM  | 5                   | ~320 ms                   |
-| Windows 10, i7, 16GB RAM  | 10                  | ~600 ms                   |
-| Linux, Ryzen 7, 32GB RAM  | 5                   | ~270 ms                   |
-| MacOS, M1, 8GB RAM        | 5                   | ~350 ms                   |
-
-- **Latency measured:** Time from stimulus onset to GUI feedback/character selection.
 - **Factors affecting latency:**
   - Number of trials per character (averaging improves SNR but increases delay)
   - CPU load and background processes
