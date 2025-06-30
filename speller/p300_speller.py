@@ -10,6 +10,9 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QMessageBox,
     QDialog,
+    QLabel,
+    QLineEdit,
+    QComboBox,
 )
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 import numpy as np
@@ -54,6 +57,7 @@ class P300SpellerGUI(QWidget):
         self.pause_between_chars = pause_between_chars
         self.chars = chars if chars is not None else default_chars(self.rows, self.cols)
         self.stim_log = []
+        self.selected_text = ""  # Store selected characters
         self.init_ui()
         self.timer = QTimer()
         self.timer.timeout.connect(self.flash_next)
@@ -67,11 +71,15 @@ class P300SpellerGUI(QWidget):
     def init_ui(self):
         self.setWindowTitle("P300 Speller")
         self.setFixedSize(1000, 800)  # Set a fixed window size to prevent resizing
-        from PyQt5.QtWidgets import QMenuBar, QWidget
+        from PyQt5.QtWidgets import QMenuBar, QWidget, QLabel, QLineEdit, QComboBox
 
         main_layout = QVBoxLayout()
         menubar = QMenuBar(self)
         main_layout.setMenuBar(menubar)
+        self.selected_textbox = QLineEdit(self)
+        self.selected_textbox.setReadOnly(True)
+        self.selected_textbox.setStyleSheet("font-size: 18px; color: green; background: #f0f0f0;")
+        main_layout.addWidget(self.selected_textbox)
         board_widget = QWidget(self)
         board_widget.setStyleSheet("background-color: black;")
         self.grid = QGridLayout()
@@ -83,6 +91,7 @@ class P300SpellerGUI(QWidget):
                 btn = QPushButton(self.chars[idx])
                 btn.setFixedSize(60, 60)
                 btn.setEnabled(False)
+                btn.clicked.connect(self.handle_matrix_button)
                 self.grid.addWidget(btn, i, j)
                 row.append(btn)
             self.buttons.append(row)
@@ -133,9 +142,15 @@ class P300SpellerGUI(QWidget):
             try:
                 self.board = connect_to_unicorn()
                 if self.board:
-                    QMessageBox.information(
-                        self, "Connection", "Successfully connected to the headset!"
-                    )
+                    # Check if using DummyBoardShim
+                    if self.board.__class__.__name__ == "DummyBoardShim":
+                        QMessageBox.information(
+                            self, "Connection", "No headset found. You will use a dummy headset for simulation."
+                        )
+                    else:
+                        QMessageBox.information(
+                            self, "Connection", "Successfully connected to the headset!"
+                        )
                     self.connect_btn.setText("Disconnect")
                 else:
                     QMessageBox.critical(
@@ -172,6 +187,7 @@ class P300SpellerGUI(QWidget):
             self.n_flashes,
             self.target_text,
             self.pause_between_chars,
+            getattr(self, "selected_model_name", self.model_selector.currentText() if hasattr(self, "model_selector") else "LDA")
         )
         # Non-modal: show the dialog and connect to a slot for when options are updated
         def on_options_applied():
@@ -186,6 +202,9 @@ class P300SpellerGUI(QWidget):
             self.n_flashes = vals["n_flashes"]
             self.target_text = vals["target_text"]
             self.pause_between_chars = vals["pause_between_chars"]
+            self.selected_model_name = vals["model_name"]
+            if hasattr(self, "model_selector"):
+                self.model_selector.setCurrentText(self.selected_model_name)
         # Try to connect to a signal if it exists, else fallback to modal
         if hasattr(dlg, 'applied'):
             dlg.applied.connect(on_options_applied)
@@ -239,11 +258,21 @@ class P300SpellerGUI(QWidget):
             if self.target_text.strip():
                 self.target_char_idx += 1
                 if self.target_char_idx < len(self.target_text):
+                    # Add selected character to display
+                    char = self.target_text[self.target_char_idx - 1].upper()
+                    if char in self.chars:
+                        self.selected_text += char
+                        self.selected_textbox.setText(self.selected_text)
                     self.prepare_target_flash_sequence()
                     self.flash_idx = 0
                     QTimer.singleShot(self.pause_between_chars, self.flash_next)
                     return
                 else:
+                    # Add the last predicted/target character if not already added
+                    if self.target_char_idx == len(self.target_text):
+                        predicted_letter = self.get_predicted_letter()
+                        if predicted_letter:
+                            self.add_predicted_letter(predicted_letter)
                     unflash(self.buttons, self.rows, self.cols, keep_target=False)
                     self.timer.stop()
                     self.is_flashing = False
@@ -482,18 +511,42 @@ class P300SpellerGUI(QWidget):
 
     def handle_lm_suggestion(self):
         sender = self.sender()
-        # Defensive: Only proceed if sender is a QPushButton
         from PyQt5.QtWidgets import QPushButton
         if isinstance(sender, QPushButton):
             suggestion = str(sender.text())
             if suggestion:
                 self.target_text += " " + suggestion
+                self.selected_text += suggestion
+                self.selected_textbox.setText(self.selected_text)
                 self.update_lm_suggestions(self.target_text)
                 # Optionally, update the GUI to reflect the new context
 
+    def handle_matrix_button(self):
+        sender = self.sender()
+        if isinstance(sender, QPushButton):
+            char = sender.text()
+            if char and char.strip():
+                self.selected_text += char
+                self.selected_textbox.setText(self.selected_text)
+                # Optionally, you can also update target_text or trigger other logic if needed
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    gui = P300SpellerGUI()
-    gui.show()
-    sys.exit(app.exec_())
+    def add_predicted_letter(self, predicted_letter):
+        """Add the predicted letter to the selected area in the GUI (QLineEdit)."""
+        if predicted_letter and predicted_letter in self.chars:
+            self.selected_text += predicted_letter
+            self.selected_textbox.setText(self.selected_text)
+
+    def get_predicted_letter(self):
+        """Return the predicted letter based on your classification logic."""
+        # Example implementation: Use the most recent EEG data and a trained classifier
+        # Replace this with your actual prediction logic
+        try:
+            from data_processing.eeg_classification import predict_character_from_eeg
+            # Use the latest EEG buffer (self.eeg_buffer) and stim log (self.stim_log)
+            if self.eeg_buffer is not None and len(self.stim_log) > 0:
+                predicted = predict_character_from_eeg(self.eeg_buffer, self.stim_log, self.chars)
+                if predicted and predicted in self.chars:
+                    return predicted
+        except Exception as e:
+            print(f"Prediction error: {e}")
+        return None

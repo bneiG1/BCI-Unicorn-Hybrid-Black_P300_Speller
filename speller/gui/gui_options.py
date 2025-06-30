@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QSpinBox, QLineEdit, QDialogButtonBox, QCheckBox, QHBoxLayout
 
 class OptionsDialog(QDialog):
-    def __init__(self, parent, rows, flash_duration, isi, layout, feedback, hybrid, n_flashes, target_text, pause_between_chars):
+    def __init__(self, parent, rows, flash_duration, isi, layout, feedback, hybrid, n_flashes, target_text, pause_between_chars, model_name="LDA"):
         super().__init__(parent)
         self.setWindowTitle('Options')
         layout_v = QVBoxLayout()
@@ -63,6 +63,12 @@ class OptionsDialog(QDialog):
         self.pause_spin.setRange(0, 5000)
         self.pause_spin.setValue(pause_between_chars)
         layout_v.addWidget(self.pause_spin)
+        # Classifier Model Selection
+        layout_v.addWidget(QLabel('Classifier Model'))
+        self.model_combo = QComboBox(self)
+        self.model_combo.addItems(["LDA", "SVM (RBF)", "SWLDA (sklearn)", "1D CNN"])
+        self.model_combo.setCurrentText(model_name)
+        layout_v.addWidget(self.model_combo)
         # OK/Cancel
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
@@ -81,6 +87,7 @@ class OptionsDialog(QDialog):
             'hybrid': self.hybrid_combo.currentText(),
             'n_flashes': self.nflashes_spin.value(),
             'target_text': self.target_line.text(),
-            'pause_between_chars': self.pause_spin.value()
+            'pause_between_chars': self.pause_spin.value(),
+            'model_name': self.model_combo.currentText()
         }
         return vals
