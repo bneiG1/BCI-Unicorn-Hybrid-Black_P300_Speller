@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QSpinBox, QLineEdit, QDialogButtonBox
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QComboBox, QSpinBox, QLineEdit, QDialogButtonBox, QCheckBox, QHBoxLayout
 
 class OptionsDialog(QDialog):
     def __init__(self, parent, rows, flash_duration, isi, layout, feedback, hybrid, n_flashes, target_text, pause_between_chars):
@@ -11,12 +11,17 @@ class OptionsDialog(QDialog):
         self.layout_combo.addItems(['row/col', 'single', 'checkerboard', 'region'])
         self.layout_combo.setCurrentText(layout)
         layout_v.addWidget(self.layout_combo)
-        # Feedback Mode
-        layout_v.addWidget(QLabel('Feedback Mode'))
-        self.feedback_combo = QComboBox(self)
-        self.feedback_combo.addItems(['color', 'border', 'sound'])
-        self.feedback_combo.setCurrentText(feedback)
-        layout_v.addWidget(self.feedback_combo)
+        # Feedback Mode (Checkboxes)
+        layout_v.addWidget(QLabel('Feedback Modes'))
+        self.feedback_options = ['color', 'sound', 'images']
+        self.feedback_checkboxes = []
+        feedback_layout = QHBoxLayout()
+        for opt in self.feedback_options:
+            cb = QCheckBox(opt.capitalize(), self)
+            cb.setChecked(opt in feedback if isinstance(feedback, list) else feedback == opt)
+            feedback_layout.addWidget(cb)
+            self.feedback_checkboxes.append(cb)
+        layout_v.addLayout(feedback_layout)
         # Hybrid Mode
         layout_v.addWidget(QLabel('Hybrid Mode'))
         self.hybrid_combo = QComboBox(self)
@@ -66,12 +71,13 @@ class OptionsDialog(QDialog):
         self.setLayout(layout_v)
 
     def get_values(self):
+        feedback_selected = [opt for opt, cb in zip(self.feedback_options, self.feedback_checkboxes) if cb.isChecked()]
         vals = {
             'size': self.size_spin.value(),
             'flash': self.flash_spin.value(),
             'isi': self.isi_spin.value(),
             'layout': self.layout_combo.currentText(),
-            'feedback': self.feedback_combo.currentText(),
+            'feedback': feedback_selected,
             'hybrid': self.hybrid_combo.currentText(),
             'n_flashes': self.nflashes_spin.value(),
             'target_text': self.target_line.text(),

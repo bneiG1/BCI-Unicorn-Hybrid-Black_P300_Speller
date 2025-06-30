@@ -12,5 +12,7 @@
     "flash_duration_ms": 100,
     "isi_ms": 75,
     "feedback_mode": "color",
-    "hybrid_mode": false
+    "hybrid_mode": false,
+    "img_dir": "config/imgs",
+    "img_extensions": [".jpg", ".jpeg", ".png", ".gif"]
 }

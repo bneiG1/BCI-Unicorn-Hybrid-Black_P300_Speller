@@ -66,7 +66,7 @@ class P300SpellerGUI(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("P300 Speller")
-        self.setFixedSize(800, 600)  # Set a fixed window size to prevent resizing
+        self.setFixedSize(1000, 800)  # Set a fixed window size to prevent resizing
         from PyQt5.QtWidgets import QMenuBar, QWidget
 
         main_layout = QVBoxLayout()
@@ -423,24 +423,36 @@ class P300SpellerGUI(QWidget):
         return super().resizeEvent(a0)
 
     def flash(self, stim_type, idx):
-        if stim_type == "row":
-            for btn in self.buttons[idx]:
-                apply_feedback(btn, self.feedback_mode, False)
-        elif stim_type == "col":
+        # Determine which buttons are being flashed
+        is_rowcol = False
+        flashed_buttons = []
+        if stim_type == 'row':
+            is_rowcol = True
+            for j in range(self.cols):
+                flashed_buttons.append(self.buttons[idx][j])
+        elif stim_type == 'col':
+            is_rowcol = True
             for i in range(self.rows):
-                apply_feedback(self.buttons[i][idx], self.feedback_mode, False)
-        elif stim_type == "single":
-            i, j = divmod(idx, self.cols)
-            apply_feedback(self.buttons[i][j], self.feedback_mode, False)
-        elif stim_type == "checker":
-            i, j = idx
-            apply_feedback(self.buttons[i][j], self.feedback_mode, False)
-        elif stim_type == "region":
-            region_size = max(2, self.rows // 2)
-            i0, j0 = idx
-            for i in range(i0, min(i0 + region_size, self.rows)):
-                for j in range(j0, min(j0 + region_size, self.cols)):
-                    apply_feedback(self.buttons[i][j], self.feedback_mode, False)
+                flashed_buttons.append(self.buttons[i][idx])
+        else:  # single
+            flashed_buttons.append(self.buttons[idx // self.cols][idx % self.cols])
+        # Determine if target character is in this row/col
+        target_in_flash = False
+        if hasattr(self, 'target_char_matrix_idx') and self.target_char_matrix_idx is not None:
+            ti, tj = divmod(self.target_char_matrix_idx, self.cols)
+            if stim_type == 'row' and idx == ti:
+                target_in_flash = True
+            elif stim_type == 'col' and idx == tj:
+                target_in_flash = True
+            elif stim_type == 'single' and idx == self.target_char_matrix_idx:
+                target_in_flash = True
+        for btn in flashed_buttons:
+            apply_feedback(
+                btn,
+                self.feedback_mode,
+                is_target=(btn == self.buttons[ti][tj] if target_in_flash else False),
+                is_target_rowcol=target_in_flash and is_rowcol
+            )
 
     def open_visualizer(self):
         from speller.visualizer.eeg_visualizer import EEGVisualizerDialog
