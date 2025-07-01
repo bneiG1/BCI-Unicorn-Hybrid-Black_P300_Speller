@@ -359,7 +359,7 @@ class P300SpellerGUI(QWidget):
                                     self.selected_textbox.setText(self.selected_text)  # Update textbox
                                     QMessageBox.information(self, "Predicted", f"Predicted character: {predicted_letter}")
                             
-                            # Delay prediction by 500ms to allow data collection to complete
+                            # Delay prediction by 500ms to allow data processing to complete
                             QTimer.singleShot(500, delayed_target_prediction)
                     unflash(self.buttons, self.rows, self.cols, keep_target=False)
                     self.timer.stop()
@@ -892,34 +892,66 @@ class P300SpellerGUI(QWidget):
     def open_visualisation_dialog(self):
         """Open the visualization dialog with enhanced error handling."""
         try:
-            if self.eeg_buffer is None or not hasattr(self, 'labels') or self.labels is None:
-                QMessageBox.warning(self, "No Data", "No EEG data or labels available for visualization.")
-                return
+            # Import visualization functions
+            from speller.visualizer.eeg_visualization import visualize_eeg_data
             
+            # Check if we have real data
             epochs = getattr(self, 'epochs', None)
             labels = getattr(self, 'labels', None)
             ch_names = getattr(self, 'eeg_names', None)
-            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
-            tmin, tmax = 0, self.eeg_buffer.shape[1] / sfreq if self.eeg_buffer is not None else (0, 1)
+            y_pred = getattr(self, 'y_pred', None)
             
-            if epochs is not None and labels is not None:
-                # Plot ERP
-                plot_erp(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
-                # Plot Topomap
-                plot_topomap(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
-                # Optionally, plot confusion matrix if predictions are available
-                y_pred = getattr(self, 'y_pred', None)
-                if y_pred is not None:
-                    plot_confusion_and_metrics(labels, y_pred)
-                if self.logger:
-                    self.logger.info("Generated visualization plots")
-            else:
-                QMessageBox.warning(self, "No Epochs", "No epoched data available for visualization.")
+            # Get sampling rate and timing parameters
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            tmin, tmax = 0, 0.8  # Default 800ms window for P300
+            
+            # Prepare metrics dictionary if predictions are available
+            metrics_dict = None
+            if y_pred is not None and labels is not None:
+                from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+                try:
+                    metrics_dict = {
+                        'Accuracy': accuracy_score(labels, y_pred),
+                        'Precision': precision_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Recall': recall_score(labels, y_pred, average='weighted', zero_division=0),
+                        'F1-Score': f1_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Epochs': len(labels) if labels is not None else 0,
+                        'Predictions': len(y_pred) if y_pred is not None else 0
+                    }
+                except Exception as e:
+                    print(f"Warning: Could not compute metrics: {e}")
+                    metrics_dict = None
+            
+            # Use the comprehensive visualization function
+            visualize_eeg_data(
+                epochs=epochs,
+                labels=labels, 
+                ch_names=ch_names,
+                sfreq=sfreq,
+                tmin=tmin,
+                tmax=tmax,
+                y_pred=y_pred,
+                metrics_dict=metrics_dict
+            )
+            
+            if self.logger:
+                self.logger.info("Generated visualization plots")
+                
         except Exception as e:
             error_msg = f"Failed to open visualization dialog: {e}"
+            print(f"Visualization error: {error_msg}")
             QMessageBox.warning(self, "Visualization", error_msg)
             if self.logger:
                 self.logger.error(error_msg)
+            
+            # Try to show a simple demo visualization
+            try:
+                from speller.visualizer.eeg_visualization import visualize_eeg_data
+                print("Showing demo visualization with sample data...")
+                visualize_eeg_data()  # This will create sample data
+            except Exception as demo_error:
+                print(f"Demo visualization also failed: {demo_error}")
+                QMessageBox.critical(self, "Visualization", "Unable to create any visualization. Please check your matplotlib installation.")
 
     def update_eeg_buffer(self, new_data):
         """Update EEG buffer with new data."""
@@ -1268,34 +1300,66 @@ class P300SpellerGUI(QWidget):
     def open_visualisation_dialog(self):
         """Open the visualization dialog with enhanced error handling."""
         try:
-            if self.eeg_buffer is None or not hasattr(self, 'labels') or self.labels is None:
-                QMessageBox.warning(self, "No Data", "No EEG data or labels available for visualization.")
-                return
+            # Import visualization functions
+            from speller.visualizer.eeg_visualization import visualize_eeg_data
             
+            # Check if we have real data
             epochs = getattr(self, 'epochs', None)
             labels = getattr(self, 'labels', None)
             ch_names = getattr(self, 'eeg_names', None)
-            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
-            tmin, tmax = 0, self.eeg_buffer.shape[1] / sfreq if self.eeg_buffer is not None else (0, 1)
+            y_pred = getattr(self, 'y_pred', None)
             
-            if epochs is not None and labels is not None:
-                # Plot ERP
-                plot_erp(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
-                # Plot Topomap
-                plot_topomap(epochs, labels, ch_names=ch_names, sfreq=sfreq, tmin=tmin, tmax=tmax)
-                # Optionally, plot confusion matrix if predictions are available
-                y_pred = getattr(self, 'y_pred', None)
-                if y_pred is not None:
-                    plot_confusion_and_metrics(labels, y_pred)
-                if self.logger:
-                    self.logger.info("Generated visualization plots")
-            else:
-                QMessageBox.warning(self, "No Epochs", "No epoched data available for visualization.")
+            # Get sampling rate and timing parameters
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            tmin, tmax = 0, 0.8  # Default 800ms window for P300
+            
+            # Prepare metrics dictionary if predictions are available
+            metrics_dict = None
+            if y_pred is not None and labels is not None:
+                from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+                try:
+                    metrics_dict = {
+                        'Accuracy': accuracy_score(labels, y_pred),
+                        'Precision': precision_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Recall': recall_score(labels, y_pred, average='weighted', zero_division=0),
+                        'F1-Score': f1_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Epochs': len(labels) if labels is not None else 0,
+                        'Predictions': len(y_pred) if y_pred is not None else 0
+                    }
+                except Exception as e:
+                    print(f"Warning: Could not compute metrics: {e}")
+                    metrics_dict = None
+            
+            # Use the comprehensive visualization function
+            visualize_eeg_data(
+                epochs=epochs,
+                labels=labels, 
+                ch_names=ch_names,
+                sfreq=sfreq,
+                tmin=tmin,
+                tmax=tmax,
+                y_pred=y_pred,
+                metrics_dict=metrics_dict
+            )
+            
+            if self.logger:
+                self.logger.info("Generated visualization plots")
+                
         except Exception as e:
             error_msg = f"Failed to open visualization dialog: {e}"
+            print(f"Visualization error: {error_msg}")
             QMessageBox.warning(self, "Visualization", error_msg)
             if self.logger:
                 self.logger.error(error_msg)
+            
+            # Try to show a simple demo visualization
+            try:
+                from speller.visualizer.eeg_visualization import visualize_eeg_data
+                print("Showing demo visualization with sample data...")
+                visualize_eeg_data()  # This will create sample data
+            except Exception as demo_error:
+                print(f"Demo visualization also failed: {demo_error}")
+                QMessageBox.critical(self, "Visualization", "Unable to create any visualization. Please check your matplotlib installation.")
 
     def update_eeg_buffer(self, new_data):
         """Update EEG buffer with new data."""
@@ -1382,3 +1446,913 @@ class P300SpellerGUI(QWidget):
             if self.logger:
                 self.logger.warning(f"Error adding predicted letter: {e}")
 
+    def _check_model_exists(self, model_name):
+        """Check if a trained model file exists for the given model name."""
+        model_paths = {
+            'LDA': 'models/lda_model.joblib',
+            'SVM (RBF)': 'models/svm_rbf_model.joblib',
+            'SWLDA (sklearn)': 'models/swlda_sklearn_model.joblib',
+        }
+        model_path = model_paths.get(model_name)
+        return model_path and os.path.exists(model_path)
+    
+    def start_calibration(self):
+        """Start calibration sequence to train/retrain the selected model."""
+        if self.is_flashing:
+            QMessageBox.warning(self, "Calibration", "Please stop the current flashing sequence before starting calibration.")
+            return
+            
+        if not self.board:
+            reply = QMessageBox.question(
+                self, 
+                "Device Connection", 
+                "No device is connected. Would you like to connect to the headset first?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                self.connect_headset()
+                if not self.board:
+                    QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                    return
+            else:
+                QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                return
+        
+        # Confirm calibration with user
+        model_name = getattr(self, 'selected_model_name', 'LDA')
+        reply = QMessageBox.question(
+            self, 
+            "Model Calibration", 
+            f"This will run a calibration sequence to train/retrain the '{model_name}' model.\n\n"
+            f"During calibration, you will need to focus on target characters as they flash.\n"
+            f"The target word will be 'CALIBRATE'.\n\n"
+            f"Are you ready to start the calibration sequence?",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+            
+        try:
+            # Prepare for calibration
+            self.is_calibration = True
+            self.reset_speller()
+            self.target_text = "CALIBRATE"
+            
+            # Show progress message
+            QMessageBox.information(
+                self, 
+                "Calibration Started", 
+                f"Calibration sequence started for '{model_name}' model.\n\n"
+                f"Please focus on each character in 'CALIBRATE' as it appears highlighted.\n"
+                f"The system will record your brain signals for training.\n\n"
+                f"Click OK to begin the flashing sequence."
+            )
+            
+            # Import and start the calibration process
+            from speller.realtime_bci import run_calibration
+            run_calibration(self, self.board, model_name)
+            
+            # Show completion message
+            QMessageBox.information(
+                self, 
+                "Calibration Complete", 
+                f"Calibration sequence completed!\n\n"
+                f"The '{model_name}' model has been trained with your data.\n"
+                f"You can now use the P300 speller with the updated model."
+            )
+            
+            if self.logger:
+                self.logger.info(f"Successfully completed calibration for {model_name} model")
+                
+        except ImportError as e:
+            error_msg = "Failed to import calibration module. Please check your installation."
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Import error during calibration: {e}")
+        except Exception as e:
+            error_msg = f"Error during calibration: {str(e)}"
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Calibration error: {e}")
+        finally:
+            # Reset calibration flag
+            self.is_calibration = False
+    
+    def handle_acquisition_error(self, msg):
+        """Handle acquisition errors with enhanced error management."""
+        error_msg = f"EEG acquisition error: {msg}"
+        QMessageBox.warning(self, "Acquisition", error_msg)
+        if self.logger:
+            self.logger.error(error_msg)
+    
+    def closeEvent(self, a0):
+        """Enhanced cleanup when closing the application."""
+        try:
+            if self.logger:
+                self.logger.info("Closing P300SpellerGUI application")
+            
+            # Stop acquisition worker thread if running
+            if hasattr(self, 'acquisition_worker'):
+                try:
+                    self.acquisition_worker.stop()
+                    del self.acquisition_worker
+                    if self.logger:
+                        self.logger.info("Stopped acquisition worker")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error stopping acquisition worker: {e}")
+            
+            # Stop streaming if running
+            if self.acquisition_running and self.board:
+                try:
+                    stop_streaming(self.board)
+                    self.acquisition_running = False
+                    if self.logger:
+                        self.logger.info("Stopped EEG streaming")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error stopping streaming: {e}")
+            
+            # Release device resources
+            if self.board:
+                try:
+                    release_resources(self.board)
+                    if self.logger:
+                        self.logger.info("Released device resources")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error releasing resources: {e}")
+                self.board = None
+            
+            super().closeEvent(a0)
+            
+            # Forcefully exit the application (keeping original behavior)
+            import os
+            os._exit(0)
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error during application close: {e}")
+            # Ensure application exits even if cleanup fails
+            import os
+            os._exit(1)
+
+    def resizeEvent(self, a0):
+        """Handle window resize events with enhanced error handling."""
+        try:
+            board_widget = getattr(self, "board_widget", None)
+            if not board_widget or not hasattr(self, "buttons"):
+                return super().resizeEvent(a0)
+            
+            board_width = board_widget.width()
+            board_height = board_widget.height()
+            if self.rows == 0 or self.cols == 0:
+                return super().resizeEvent(a0)
+            
+            btn_w = max(30, board_width // self.cols - 8)
+            btn_h = max(30, board_height // self.rows - 8)
+            font_size = max(10, min(btn_w, btn_h) // 2)
+            
+            for row in self.buttons:
+                for btn in row:
+                    btn.setFixedSize(btn_w, btn_h)
+                    font = btn.font()
+                    font.setPointSize(font_size)
+                    btn.setFont(font)
+            
+            return super().resizeEvent(a0)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error during window resize: {e}")
+            return super().resizeEvent(a0)
+
+    def flash(self, stim_type, idx):
+        """Flash buttons with enhanced error handling."""
+        try:
+            # Determine which buttons are being flashed
+            is_rowcol = False
+            flashed_buttons = []
+            
+            if stim_type == 'row':
+                is_rowcol = True
+                for j in range(self.cols):
+                    flashed_buttons.append(self.buttons[idx][j])
+            elif stim_type == 'col':
+                is_rowcol = True
+                for i in range(self.rows):
+                    flashed_buttons.append(self.buttons[i][idx])
+            elif stim_type == 'region':
+                # idx is (i, j) for top-left of region
+                region_size = 3
+                i0, j0 = idx
+                for di in range(region_size):
+                    for dj in range(region_size):
+                        ii, jj = i0 + di, j0 + dj
+                        if 0 <= ii < self.rows and 0 <= jj < self.cols:
+                            flashed_buttons.append(self.buttons[ii][jj])
+            else:  # single
+                # Handle idx being a tuple (row, col) or an int
+                if isinstance(idx, tuple):
+                    row, col = idx
+                else:
+                    row, col = idx // self.cols, idx % self.cols
+                flashed_buttons.append(self.buttons[row][col])
+            
+            # Determine if target character is in this row/col/region
+            target_in_flash = False
+            if hasattr(self, 'target_char_matrix_idx') and self.target_char_matrix_idx is not None:
+                ti, tj = divmod(self.target_char_matrix_idx, self.cols)
+                if stim_type == 'row' and idx == ti:
+                    target_in_flash = True
+                elif stim_type == 'col' and idx == tj:
+                    target_in_flash = True
+                elif stim_type == 'region':
+                    i0, j0 = idx
+                    if i0 <= ti < i0 + 3 and j0 <= tj < j0 + 3:
+                        target_in_flash = True
+                elif stim_type == 'single':
+                    if isinstance(idx, tuple):
+                        target_in_flash = (idx == (ti, tj))
+                    else:
+                        target_in_flash = (idx == self.target_char_matrix_idx)
+            
+            for btn in flashed_buttons:
+                apply_feedback(
+                    btn,
+                    self.feedback_mode,
+                    is_target=(btn == self.buttons[ti][tj] if target_in_flash else False),
+                    is_target_rowcol=target_in_flash and is_rowcol
+                )
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error during flash operation: {e}")
+
+    def open_visualizer(self):
+        """Open the EEG visualizer with enhanced error handling."""
+        try:
+            from speller.visualizer.eeg_visualizer import EEGVisualizerDialog
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            dlg = EEGVisualizerDialog(self.eeg_buffer, self.eeg_names, self, sfreq)
+            dlg.show()  # Non-modal
+            if self.logger:
+                self.logger.info("Opened EEG visualizer")
+        except Exception as e:
+            error_msg = f"Failed to open EEG visualizer: {e}"
+            QMessageBox.warning(self, "Visualizer", error_msg)
+            if self.logger:
+                self.logger.error(error_msg)
+
+    def open_visualisation_dialog(self):
+        """Open the visualization dialog with enhanced error handling."""
+        try:
+            # Import visualization functions
+            from speller.visualizer.eeg_visualization import visualize_eeg_data
+            
+            # Check if we have real data
+            epochs = getattr(self, 'epochs', None)
+            labels = getattr(self, 'labels', None)
+            ch_names = getattr(self, 'eeg_names', None)
+            y_pred = getattr(self, 'y_pred', None)
+            
+            # Get sampling rate and timing parameters
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            tmin, tmax = 0, 0.8  # Default 800ms window for P300
+            
+            # Prepare metrics dictionary if predictions are available
+            metrics_dict = None
+            if y_pred is not None and labels is not None:
+                from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+                try:
+                    metrics_dict = {
+                        'Accuracy': accuracy_score(labels, y_pred),
+                        'Precision': precision_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Recall': recall_score(labels, y_pred, average='weighted', zero_division=0),
+                        'F1-Score': f1_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Epochs': len(labels) if labels is not None else 0,
+                        'Predictions': len(y_pred) if y_pred is not None else 0
+                    }
+                except Exception as e:
+                    print(f"Warning: Could not compute metrics: {e}")
+                    metrics_dict = None
+            
+            # Use the comprehensive visualization function
+            visualize_eeg_data(
+                epochs=epochs,
+                labels=labels, 
+                ch_names=ch_names,
+                sfreq=sfreq,
+                tmin=tmin,
+                tmax=tmax,
+                y_pred=y_pred,
+                metrics_dict=metrics_dict
+            )
+            
+            if self.logger:
+                self.logger.info("Generated visualization plots")
+                
+        except Exception as e:
+            error_msg = f"Failed to open visualization dialog: {e}"
+            print(f"Visualization error: {error_msg}")
+            QMessageBox.warning(self, "Visualization", error_msg)
+            if self.logger:
+                self.logger.error(error_msg)
+            
+            # Try to show a simple demo visualization
+            try:
+                from speller.visualizer.eeg_visualization import visualize_eeg_data
+                print("Showing demo visualization with sample data...")
+                visualize_eeg_data()  # This will create sample data
+            except Exception as demo_error:
+                print(f"Demo visualization also failed: {demo_error}")
+                QMessageBox.critical(self, "Visualization", "Unable to create any visualization. Please check your matplotlib installation.")
+
+    def update_eeg_buffer(self, new_data):
+        """Update EEG buffer with new data."""
+        try:
+            if new_data is not None and new_data.shape[1] > 0:
+                if self.eeg_buffer is None or self.eeg_buffer.shape[1] == 0:
+                    self.eeg_buffer = new_data
+                else:
+                    self.eeg_buffer = np.concatenate((self.eeg_buffer, new_data), axis=1)
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error updating EEG buffer: {e}")
+
+    def update_lm_suggestions(self, context_text: str):
+        """Update language model suggestions."""
+        try:
+            if not self.language_model:
+                for btn in self.lm_suggestion_buttons:
+                    btn.setVisible(False)
+                return
+            
+            suggestions = self.language_model.predict_words(context_text, n_suggestions=3)
+            for i, btn in enumerate(self.lm_suggestion_buttons):
+                if i < len(suggestions):
+                    btn.setText(suggestions[i])
+                    btn.setVisible(True)
+                else:
+                    btn.setVisible(False)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error updating language model suggestions: {e}")
+
+    def handle_lm_suggestion(self):
+        """Handle language model suggestion selection."""
+        try:
+            sender = self.sender()
+            from PyQt5.QtWidgets import QPushButton
+            if isinstance(sender, QPushButton):
+                suggestion = str(sender.text())
+                if suggestion:
+                    self.target_text += " " + suggestion
+                    self.selected_text += suggestion
+                    if hasattr(self, 'selected_textbox'):
+                        self.selected_textbox.setText(self.selected_text)
+                    self.update_lm_suggestions(self.target_text)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling language model suggestion: {e}")
+
+    def handle_matrix_button(self):
+        """Handle matrix button clicks."""
+        try:
+            sender = self.sender()
+            if sender is not None:
+                char = sender.text()
+                self.selected_text += char
+                self.selected_textbox.setText(self.selected_text)
+                self.last_clicked_char = char
+                sender.setStyleSheet('background-color: yellow;')
+                sender.setEnabled(False)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling matrix button click: {e}")
+
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        try:
+            key = event.text().upper()
+            if key in self.chars:
+                self.last_pressed_char = key
+            super().keyPressEvent(event)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling key press: {e}")
+
+    def add_predicted_letter(self, predicted_letter):
+        """Add the predicted letter to the selected area in the GUI."""
+        try:
+            if predicted_letter and predicted_letter in self.chars:
+                self.selected_text += predicted_letter
+                if hasattr(self, 'selected_textbox'):
+                    self.selected_textbox.setText(self.selected_text)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error adding predicted letter: {e}")
+
+    def _check_model_exists(self, model_name):
+        """Check if a trained model file exists for the given model name."""
+        model_paths = {
+            'LDA': 'models/lda_model.joblib',
+            'SVM (RBF)': 'models/svm_rbf_model.joblib',
+            'SWLDA (sklearn)': 'models/swlda_sklearn_model.joblib',
+        }
+        model_path = model_paths.get(model_name)
+        return model_path and os.path.exists(model_path)
+    
+    def start_calibration(self):
+        """Start calibration sequence to train/retrain the selected model."""
+        if self.is_flashing:
+            QMessageBox.warning(self, "Calibration", "Please stop the current flashing sequence before starting calibration.")
+            return
+            
+        if not self.board:
+            reply = QMessageBox.question(
+                self, 
+                "Device Connection", 
+                "No device is connected. Would you like to connect to the headset first?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                self.connect_headset()
+                if not self.board:
+                    QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                    return
+            else:
+                QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                return
+        
+        # Confirm calibration with user
+        model_name = getattr(self, 'selected_model_name', 'LDA')
+        reply = QMessageBox.question(
+            self, 
+            "Model Calibration", 
+            f"This will run a calibration sequence to train/retrain the '{model_name}' model.\n\n"
+            f"During calibration, you will need to focus on target characters as they flash.\n"
+            f"The target word will be 'CALIBRATE'.\n\n"
+            f"Are you ready to start the calibration sequence?",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+            
+        try:
+            # Prepare for calibration
+            self.is_calibration = True
+            self.reset_speller()
+            self.target_text = "CALIBRATE"
+            
+            # Show progress message
+            QMessageBox.information(
+                self, 
+                "Calibration Started", 
+                f"Calibration sequence started for '{model_name}' model.\n\n"
+                f"Please focus on each character in 'CALIBRATE' as it appears highlighted.\n"
+                f"The system will record your brain signals for training.\n\n"
+                f"Click OK to begin the flashing sequence."
+            )
+            
+            # Import and start the calibration process
+            from speller.realtime_bci import run_calibration
+            run_calibration(self, self.board, model_name)
+            
+            # Show completion message
+            QMessageBox.information(
+                self, 
+                "Calibration Complete", 
+                f"Calibration sequence completed!\n\n"
+                f"The '{model_name}' model has been trained with your data.\n"
+                f"You can now use the P300 speller with the updated model."
+            )
+            
+            if self.logger:
+                self.logger.info(f"Successfully completed calibration for {model_name} model")
+                
+        except ImportError as e:
+            error_msg = "Failed to import calibration module. Please check your installation."
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Import error during calibration: {e}")
+        except Exception as e:
+            error_msg = f"Error during calibration: {str(e)}"
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Calibration error: {e}")
+        finally:
+            # Reset calibration flag
+            self.is_calibration = False
+    
+    def handle_acquisition_error(self, msg):
+        """Handle acquisition errors with enhanced error management."""
+        error_msg = f"EEG acquisition error: {msg}"
+        QMessageBox.warning(self, "Acquisition", error_msg)
+        if self.logger:
+            self.logger.error(error_msg)
+    
+    def closeEvent(self, a0):
+        """Enhanced cleanup when closing the application."""
+        try:
+            if self.logger:
+                self.logger.info("Closing P300SpellerGUI application")
+            
+            # Stop acquisition worker thread if running
+            if hasattr(self, 'acquisition_worker'):
+                try:
+                    self.acquisition_worker.stop()
+                    del self.acquisition_worker
+                    if self.logger:
+                        self.logger.info("Stopped acquisition worker")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error stopping acquisition worker: {e}")
+            
+            # Stop streaming if running
+            if self.acquisition_running and self.board:
+                try:
+                    stop_streaming(self.board)
+                    self.acquisition_running = False
+                    if self.logger:
+                        self.logger.info("Stopped EEG streaming")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error stopping streaming: {e}")
+            
+            # Release device resources
+            if self.board:
+                try:
+                    release_resources(self.board)
+                    if self.logger:
+                        self.logger.info("Released device resources")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error releasing resources: {e}")
+                self.board = None
+            
+            super().closeEvent(a0)
+            
+            # Forcefully exit the application (keeping original behavior)
+            import os
+            os._exit(0)
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error during application close: {e}")
+            # Ensure application exits even if cleanup fails
+            import os
+            os._exit(1)
+
+    def resizeEvent(self, a0):
+        """Handle window resize events with enhanced error handling."""
+        try:
+            board_widget = getattr(self, "board_widget", None)
+            if not board_widget or not hasattr(self, "buttons"):
+                return super().resizeEvent(a0)
+            
+            board_width = board_widget.width()
+            board_height = board_widget.height()
+            if self.rows == 0 or self.cols == 0:
+                return super().resizeEvent(a0)
+            
+            btn_w = max(30, board_width // self.cols - 8)
+            btn_h = max(30, board_height // self.rows - 8)
+            font_size = max(10, min(btn_w, btn_h) // 2)
+            
+            for row in self.buttons:
+                for btn in row:
+                    btn.setFixedSize(btn_w, btn_h)
+                    font = btn.font()
+                    font.setPointSize(font_size)
+                    btn.setFont(font)
+            
+            return super().resizeEvent(a0)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error during window resize: {e}")
+            return super().resizeEvent(a0)
+
+    def flash(self, stim_type, idx):
+        """Flash buttons with enhanced error handling."""
+        try:
+            # Determine which buttons are being flashed
+            is_rowcol = False
+            flashed_buttons = []
+            
+            if stim_type == 'row':
+                is_rowcol = True
+                for j in range(self.cols):
+                    flashed_buttons.append(self.buttons[idx][j])
+            elif stim_type == 'col':
+                is_rowcol = True
+                for i in range(self.rows):
+                    flashed_buttons.append(self.buttons[i][idx])
+            elif stim_type == 'region':
+                # idx is (i, j) for top-left of region
+                region_size = 3
+                i0, j0 = idx
+                for di in range(region_size):
+                    for dj in range(region_size):
+                        ii, jj = i0 + di, j0 + dj
+                        if 0 <= ii < self.rows and 0 <= jj < self.cols:
+                            flashed_buttons.append(self.buttons[ii][jj])
+            else:  # single
+                # Handle idx being a tuple (row, col) or an int
+                if isinstance(idx, tuple):
+                    row, col = idx
+                else:
+                    row, col = idx // self.cols, idx % self.cols
+                flashed_buttons.append(self.buttons[row][col])
+            
+            # Determine if target character is in this row/col/region
+            target_in_flash = False
+            if hasattr(self, 'target_char_matrix_idx') and self.target_char_matrix_idx is not None:
+                ti, tj = divmod(self.target_char_matrix_idx, self.cols)
+                if stim_type == 'row' and idx == ti:
+                    target_in_flash = True
+                elif stim_type == 'col' and idx == tj:
+                    target_in_flash = True
+                elif stim_type == 'region':
+                    i0, j0 = idx
+                    if i0 <= ti < i0 + 3 and j0 <= tj < j0 + 3:
+                        target_in_flash = True
+                elif stim_type == 'single':
+                    if isinstance(idx, tuple):
+                        target_in_flash = (idx == (ti, tj))
+                    else:
+                        target_in_flash = (idx == self.target_char_matrix_idx)
+            
+            for btn in flashed_buttons:
+                apply_feedback(
+                    btn,
+                    self.feedback_mode,
+                    is_target=(btn == self.buttons[ti][tj] if target_in_flash else False),
+                    is_target_rowcol=target_in_flash and is_rowcol
+                )
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error during flash operation: {e}")
+
+    def open_visualizer(self):
+        """Open the EEG visualizer with enhanced error handling."""
+        try:
+            from speller.visualizer.eeg_visualizer import EEGVisualizerDialog
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            dlg = EEGVisualizerDialog(self.eeg_buffer, self.eeg_names, self, sfreq)
+            dlg.show()  # Non-modal
+            if self.logger:
+                self.logger.info("Opened EEG visualizer")
+        except Exception as e:
+            error_msg = f"Failed to open EEG visualizer: {e}"
+            QMessageBox.warning(self, "Visualizer", error_msg)
+            if self.logger:
+                self.logger.error(error_msg)
+
+    def open_visualisation_dialog(self):
+        """Open the visualization dialog with enhanced error handling."""
+        try:
+            # Import visualization functions
+            from speller.visualizer.eeg_visualization import visualize_eeg_data
+            
+            # Check if we have real data
+            epochs = getattr(self, 'epochs', None)
+            labels = getattr(self, 'labels', None)
+            ch_names = getattr(self, 'eeg_names', None)
+            y_pred = getattr(self, 'y_pred', None)
+            
+            # Get sampling rate and timing parameters
+            sfreq = BoardShim.get_sampling_rate(BoardIds.UNICORN_BOARD.value)
+            tmin, tmax = 0, 0.8  # Default 800ms window for P300
+            
+            # Prepare metrics dictionary if predictions are available
+            metrics_dict = None
+            if y_pred is not None and labels is not None:
+                from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+                try:
+                    metrics_dict = {
+                        'Accuracy': accuracy_score(labels, y_pred),
+                        'Precision': precision_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Recall': recall_score(labels, y_pred, average='weighted', zero_division=0),
+                        'F1-Score': f1_score(labels, y_pred, average='weighted', zero_division=0),
+                        'Epochs': len(labels) if labels is not None else 0,
+                        'Predictions': len(y_pred) if y_pred is not None else 0
+                    }
+                except Exception as e:
+                    print(f"Warning: Could not compute metrics: {e}")
+                    metrics_dict = None
+            
+            # Use the comprehensive visualization function
+            visualize_eeg_data(
+                epochs=epochs,
+                labels=labels, 
+                ch_names=ch_names,
+                sfreq=sfreq,
+                tmin=tmin,
+                tmax=tmax,
+                y_pred=y_pred,
+                metrics_dict=metrics_dict
+            )
+            
+            if self.logger:
+                self.logger.info("Generated visualization plots")
+                
+        except Exception as e:
+            error_msg = f"Failed to open visualization dialog: {e}"
+            print(f"Visualization error: {error_msg}")
+            QMessageBox.warning(self, "Visualization", error_msg)
+            if self.logger:
+                self.logger.error(error_msg)
+            
+            # Try to show a simple demo visualization
+            try:
+                from speller.visualizer.eeg_visualization import visualize_eeg_data
+                print("Showing demo visualization with sample data...")
+                visualize_eeg_data()  # This will create sample data
+            except Exception as demo_error:
+                print(f"Demo visualization also failed: {demo_error}")
+                QMessageBox.critical(self, "Visualization", "Unable to create any visualization. Please check your matplotlib installation.")
+
+    def update_eeg_buffer(self, new_data):
+        """Update EEG buffer with new data."""
+        try:
+            if new_data is not None and new_data.shape[1] > 0:
+                if self.eeg_buffer is None or self.eeg_buffer.shape[1] == 0:
+                    self.eeg_buffer = new_data
+                else:
+                    self.eeg_buffer = np.concatenate((self.eeg_buffer, new_data), axis=1)
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error updating EEG buffer: {e}")
+
+    def update_lm_suggestions(self, context_text: str):
+        """Update language model suggestions."""
+        try:
+            if not self.language_model:
+                for btn in self.lm_suggestion_buttons:
+                    btn.setVisible(False)
+                return
+            
+            suggestions = self.language_model.predict_words(context_text, n_suggestions=3)
+            for i, btn in enumerate(self.lm_suggestion_buttons):
+                if i < len(suggestions):
+                    btn.setText(suggestions[i])
+                    btn.setVisible(True)
+                else:
+                    btn.setVisible(False)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error updating language model suggestions: {e}")
+
+    def handle_lm_suggestion(self):
+        """Handle language model suggestion selection."""
+        try:
+            sender = self.sender()
+            from PyQt5.QtWidgets import QPushButton
+            if isinstance(sender, QPushButton):
+                suggestion = str(sender.text())
+                if suggestion:
+                    self.target_text += " " + suggestion
+                    self.selected_text += suggestion
+                    if hasattr(self, 'selected_textbox'):
+                        self.selected_textbox.setText(self.selected_text)
+                    self.update_lm_suggestions(self.target_text)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling language model suggestion: {e}")
+
+    def handle_matrix_button(self):
+        """Handle matrix button clicks."""
+        try:
+            sender = self.sender()
+            if sender is not None:
+                char = sender.text()
+                self.selected_text += char
+                self.selected_textbox.setText(self.selected_text)
+                self.last_clicked_char = char
+                sender.setStyleSheet('background-color: yellow;')
+                sender.setEnabled(False)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling matrix button click: {e}")
+
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        try:
+            key = event.text().upper()
+            if key in self.chars:
+                self.last_pressed_char = key
+            super().keyPressEvent(event)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error handling key press: {e}")
+
+    def add_predicted_letter(self, predicted_letter):
+        """Add the predicted letter to the selected area in the GUI."""
+        try:
+            if predicted_letter and predicted_letter in self.chars:
+                self.selected_text += predicted_letter
+                if hasattr(self, 'selected_textbox'):
+                    self.selected_textbox.setText(self.selected_text)
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Error adding predicted letter: {e}")
+
+    def _check_model_exists(self, model_name):
+        """Check if a trained model file exists for the given model name."""
+        model_paths = {
+            'LDA': 'models/lda_model.joblib',
+            'SVM (RBF)': 'models/svm_rbf_model.joblib',
+            'SWLDA (sklearn)': 'models/swlda_sklearn_model.joblib',
+        }
+        model_path = model_paths.get(model_name)
+        return model_path and os.path.exists(model_path)
+    
+    def start_calibration(self):
+        """Start calibration sequence to train/retrain the selected model."""
+        if self.is_flashing:
+            QMessageBox.warning(self, "Calibration", "Please stop the current flashing sequence before starting calibration.")
+            return
+            
+        if not self.board:
+            reply = QMessageBox.question(
+                self, 
+                "Device Connection", 
+                "No device is connected. Would you like to connect to the headset first?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                self.connect_headset()
+                if not self.board:
+                    QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                    return
+            else:
+                QMessageBox.critical(self, "Calibration", "Cannot start calibration without a connected device.")
+                return
+        
+        # Confirm calibration with user
+        model_name = getattr(self, 'selected_model_name', 'LDA')
+        reply = QMessageBox.question(
+            self, 
+            "Model Calibration", 
+            f"This will run a calibration sequence to train/retrain the '{model_name}' model.\n\n"
+            f"During calibration, you will need to focus on target characters as they flash.\n"
+            f"The target word will be 'CALIBRATE'.\n\n"
+            f"Are you ready to start the calibration sequence?",
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+            
+        try:
+            # Prepare for calibration
+            self.is_calibration = True
+            self.reset_speller()
+            self.target_text = "CALIBRATE"
+            
+            # Show progress message
+            QMessageBox.information(
+                self, 
+                "Calibration Started", 
+                f"Calibration sequence started for '{model_name}' model.\n\n"
+                f"Please focus on each character in 'CALIBRATE' as it appears highlighted.\n"
+                f"The system will record your brain signals for training.\n\n"
+                f"Click OK to begin the flashing sequence."
+            )
+            
+            # Import and start the calibration process
+            from speller.realtime_bci import run_calibration
+            run_calibration(self, self.board, model_name)
+            
+            # Show completion message
+            QMessageBox.information(
+                self, 
+                "Calibration Complete", 
+                f"Calibration sequence completed!\n\n"
+                f"The '{model_name}' model has been trained with your data.\n"
+                f"You can now use the P300 speller with the updated model."
+            )
+            
+            if self.logger:
+                self.logger.info(f"Successfully completed calibration for {model_name} model")
+                
+        except ImportError as e:
+            error_msg = "Failed to import calibration module. Please check your installation."
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Import error during calibration: {e}")
+        except Exception as e:
+            error_msg = f"Error during calibration: {str(e)}"
+            QMessageBox.critical(self, "Calibration Error", error_msg)
+            if self.logger:
+                self.logger.error(f"Calibration error: {e}")
+        finally:
+            # Reset calibration flag
+            self.is_calibration = False
