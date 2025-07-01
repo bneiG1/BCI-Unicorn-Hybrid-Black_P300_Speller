@@ -1,7 +1,7 @@
 import numpy as np
 
 def generate_sample_eeg_dataset(
-    filename: str = "data/sample_eeg_data.npz",
+    filename: str = "../data/sample_eeg_data.npz",
     n_epochs: int = 20,
     n_channels: int = 8,
     n_samples: int = 256,

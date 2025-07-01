@@ -66,7 +66,8 @@ class OptionsDialog(QDialog):
         # Classifier Model Selection
         layout_v.addWidget(QLabel('Classifier Model'))
         self.model_combo = QComboBox(self)
-        self.model_combo.addItems(["LDA", "SVM (RBF)", "SWLDA (sklearn)", "1D CNN"])
+        # self.model_combo.addItems(["LDA", "SVM (RBF)", "SWLDA (sklearn)", "1D CNN"])
+        self.model_combo.addItems(["LDA", "SVM (RBF)", "SWLDA (sklearn)"])  # 1D CNN commented out
         self.model_combo.setCurrentText(model_name)
         layout_v.addWidget(self.model_combo)
         # OK/Cancel

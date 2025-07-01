@@ -5,7 +5,8 @@ import os
 
 def convert_csv_to_npz(csv_path, npz_path=None, sampling_rate=256):
     """
-    Convert a CSV EEG file (channels x samples, last col = label if present) to .npz format.
+    Convert a CSV EEG file (time samples x [channels + metadata]) to .npz format.
+    Assumes CSV columns: EEG channels, Accelerometer X/Y/Z, Gyroscope X/Y/Z, Battery, Counter, Validation, Timestamp, Markers
     Args:
         csv_path: Path to the CSV file
         npz_path: Output .npz file path (if None, auto-generate)
@@ -14,16 +15,46 @@ def convert_csv_to_npz(csv_path, npz_path=None, sampling_rate=256):
         npz_path: Path to the saved .npz file
     """
     df = pd.read_csv(csv_path)
-    X = df.iloc[:, :-1].to_numpy()  # all but last col
-    y = df.iloc[:, -1].to_numpy(dtype=int)  # last col as label
-    # Reshape to (n_epochs, n_channels, n_samples) if possible
-    n_channels = X.shape[1] if X.shape[0] < X.shape[1] else X.shape[0]
-    n_samples = X.shape[0] if X.shape[0] > X.shape[1] else X.shape[1]
-    # Try to guess epochs: if only one epoch, shape (1, n_channels, n_samples)
-    X = X.T[None, ...] if X.ndim == 2 else X
+    
+    # Extract EEG channels (first 8 columns are typically EEG)
+    eeg_columns = ['Fp1', 'Fp2', 'C3', 'C4', 'Pz', 'O1', 'O2', 'Fz']
+    eeg_data = df[eeg_columns].to_numpy().T  # shape: (n_channels, n_samples)
+    
+    # Extract markers for creating epochs
+    markers = df['Markers'].to_numpy()
+    
+    # Find stimulus events (non-zero markers)
+    stim_events = np.where(markers != 0)[0]
+    
+    # Create epochs around each stimulus event
+    epoch_length_samples = int(0.8 * sampling_rate)  # 800ms epochs for P300
+    epochs = []
+    labels = []
+    
+    for event_idx in stim_events:
+        start_idx = event_idx
+        end_idx = start_idx + epoch_length_samples
+        
+        if end_idx < len(markers):
+            epoch = eeg_data[:, start_idx:end_idx]  # shape: (n_channels, epoch_samples)
+            epochs.append(epoch)
+            labels.append(int(markers[event_idx]))  # Use marker value as label
+    
+    if len(epochs) == 0:
+        # If no events found, create a single epoch from all data
+        print(f"No stimulus events found, creating single epoch from all {eeg_data.shape[1]} samples")
+        epochs = [eeg_data]
+        labels = [1]  # Default label
+    
+    # Convert to numpy arrays
+    X = np.array(epochs)  # shape: (n_epochs, n_channels, n_samples)
+    y = np.array(labels)
+    
     if npz_path is None:
         npz_path = os.path.splitext(csv_path)[0] + '.npz'
+    
     np.savez(npz_path, X=X, y=y, sampling_rate_Hz=sampling_rate)
+    print(f"Converted CSV to NPZ: {X.shape} epochs, {len(y)} labels, saved to {npz_path}")
     return npz_path
 
 def get_latest_file(data_dir='data', extension='.npz'):

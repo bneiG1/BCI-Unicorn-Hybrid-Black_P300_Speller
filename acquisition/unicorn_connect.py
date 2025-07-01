@@ -53,10 +53,25 @@ def connect_to_unicorn(serial_port=None):
 
 def start_streaming(board):
     try:
+        # Check if streaming is already active
+        if board.is_prepared():
+            # If the board is prepared but we're unsure about streaming status,
+            # it's safer to stop and restart the stream
+            try:
+                board.stop_stream()
+                print("Stopped existing stream before starting a new one.")
+                time.sleep(0.5)  # Give some time for the stream to fully stop
+            except BrainFlowError:
+                # If stopping fails, the stream might not be running, which is fine
+                pass
+                
         board.start_stream()
         print("Data streaming started.")
     except BrainFlowError as e:
-        print(f"Failed to start streaming: {e}")
+        if "STREAM_ALREADY_RUN_ERROR" in str(e):
+            print(f"Stream is already running: {e}")
+        else:
+            print(f"Failed to start streaming: {e}")
 
 
 def stop_streaming(board):

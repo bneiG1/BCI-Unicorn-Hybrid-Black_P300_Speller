@@ -50,6 +50,12 @@ class EEGPreprocessingPipeline:
 
     def bandpass_filter(self, eeg_data_uV: np.ndarray) -> np.ndarray:
         """Apply elliptic bandpass filter to EEG data (channels x samples)."""
+        # Check if signal is long enough for filtering (elliptic filter needs padlen=27)
+        min_length = 54  # 2 * padlen + 1 for safety
+        if eeg_data_uV.shape[1] < min_length:
+            logging.warning(f"Signal too short for bandpass filtering ({eeg_data_uV.shape[1]} < {min_length} samples). Skipping filter.")
+            return eeg_data_uV
+        
         nyq = 0.5 * self.sampling_rate_Hz
         low, high = self.bandpass_Hz[0] / nyq, self.bandpass_Hz[1] / nyq
         b, a = ellip(4, 0.01, 120, [low, high], btype='band')
@@ -59,6 +65,12 @@ class EEGPreprocessingPipeline:
 
     def notch_filter(self, eeg_data_uV: np.ndarray) -> np.ndarray:
         """Apply notch filter to remove powerline noise from EEG data (channels x samples)."""
+        # Check if signal is long enough for filtering
+        min_length = 54  # 2 * padlen + 1 for safety
+        if eeg_data_uV.shape[1] < min_length:
+            logging.warning(f"Signal too short for notch filtering ({eeg_data_uV.shape[1]} < {min_length} samples). Skipping filter.")
+            return eeg_data_uV
+            
         nyq = 0.5 * self.sampling_rate_Hz
         notch = self.notch_freq_Hz / nyq
         b, a = iirnotch(notch, Q=30)
@@ -223,3 +235,30 @@ class EEGPreprocessingPipeline:
         """Return only posterior channels (Pz, Oz) for P300 detection."""
         idx = self.get_channel_indices(channel_names, self.posterior_channels)
         return eeg_data_uV[idx, :]
+
+def epoch_eeg_data(eeg_data_uV, stim_log, sfreq, epoch_length=1.0, channel_names=None):
+    """
+    Wrapper for epoching EEG data for P300 speller.
+    Args:
+        eeg_data_uV: np.ndarray (channels x samples)
+        stim_log: list of (timestamp, stim_type, idx)
+        sfreq: float, sampling frequency
+        epoch_length: float, length of each epoch in seconds
+        channel_names: list of str (optional)
+    Returns:
+        np.ndarray: epochs (n_epochs, channels, samples)
+    """
+    if channel_names is None:
+        # Default channel names if not provided
+        channel_names = [f"EEG{i}" for i in range(eeg_data_uV.shape[0])]
+    # Extract event sample indices from stim_log (assuming timestamp is in seconds)
+    event_samples = [(int(ts * sfreq), 1) for ts, _, _ in stim_log]
+    pipeline = EEGPreprocessingPipeline(sampling_rate_Hz=sfreq)
+    epochs = pipeline.epoch_data(
+        eeg_data_uV,
+        event_samples,
+        epoch_start_s=0.0,
+        epoch_end_s=epoch_length,
+        channel_names=channel_names
+    )
+    return epochs.get_data()  # shape: (n_epochs, n_channels, n_times)
