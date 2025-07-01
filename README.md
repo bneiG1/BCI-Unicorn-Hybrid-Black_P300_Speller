@@ -161,6 +161,14 @@ python -m unittest discover -s tests
 **Q: I get `NotFittedError` or model not found errors.**
 - Train and save a classifier using `eeg_classification.py` before running real-time BCI.
 - Ensure `lda_model.joblib` is present in the project directory.
+- **New**: Use the "Calibrate Model" button in the main GUI to run a calibration sequence and train a new model directly.
+
+**Q: How do I calibrate or retrain a model?**
+- Click the "Calibrate Model" button in the main window.
+- Ensure your EEG device is connected first.
+- During calibration, focus on each letter in "CALIBRATE" as it flashes.
+- The system will train the selected model (shown in the status display) with your recorded brain signals.
+- Change the model type in Options → Classifier Model before calibrating if you want to train a different algorithm.
 
 **Q: No EEG device found or connection fails.**
 - Make sure the Unicorn Hybrid Black is powered on and connected.

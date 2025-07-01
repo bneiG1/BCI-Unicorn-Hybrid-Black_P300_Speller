@@ -1,6 +1,7 @@
 import logging
 import sys
 import time
+import datetime
 import numpy as np
 import os
 import math
@@ -35,9 +36,8 @@ MODEL_PATHS = {
 os.makedirs('logs', exist_ok=True)
 log_filename = os.environ.get('UNICORN_LOG_FILE')
 if not log_filename:
-    import datetime
     log_filename = datetime.datetime.now().strftime('logs/logs_%Y%m%d_%H%M%S.log')
-    os.environ['UNICORN_LOG_FILE'] = log_filename
+os.environ['UNICORN_LOG_FILE'] = log_filename
 # Redirect stdout and stderr to the log file
 sys.stdout = open(log_filename, 'a', encoding='utf-8', buffering=1)
 sys.stderr = sys.stdout
