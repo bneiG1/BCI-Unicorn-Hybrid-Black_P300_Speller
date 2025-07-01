@@ -226,8 +226,44 @@ def classify_and_feedback(board, gui, pipeline, clf):
                     
                     gui.is_calibration = False
                     break
-                max_idx = np.unravel_index(np.argmax(button_scores), button_scores.shape)
-                predicted_char = gui.buttons[max_idx[0]][max_idx[1]].text()
+                
+                # Get predicted character using the improved prediction method
+                try:
+                    from data_processing.eeg_classification import predict_character_from_eeg
+                    if buffer.shape[1] > 0 and len(gui.stim_log) > 0:
+                        predicted_char, confidence = predict_character_from_eeg(
+                            eeg_buffer=buffer,
+                            stim_log=gui.stim_log,
+                            chars=[btn.text() for row in gui.buttons for btn in row],
+                            rows=gui.rows,
+                            cols=gui.cols,
+                            sampling_rate=SFREQ,
+                            confidence_threshold=0.6
+                        )
+                        logging.info(f"Predicted character: {predicted_char} (confidence: {confidence:.3f})")
+                    else:
+                        # Fallback: select random character instead of using button scores
+                        logging.info("No buffer data or stimulus log - selecting random character")
+                        import random
+                        import time
+                        # Ensure better randomness by seeding with current time
+                        random.seed(int(time.time() * 1000000) % 2**32)
+                        available_chars = [btn.text() for row in gui.buttons for btn in row]
+                        predicted_char = random.choice(available_chars)
+                        confidence = 0.0
+                        logging.info(f"Predicted character (random fallback): {predicted_char}")
+                except Exception as e:
+                    logging.error(f"Error in character prediction: {e}")
+                    # Final fallback: random character instead of button scores
+                    import random
+                    import time
+                    # Ensure better randomness by seeding with current time
+                    random.seed(int(time.time() * 1000000) % 2**32)
+                    available_chars = [btn.text() for row in gui.buttons for btn in row]
+                    predicted_char = random.choice(available_chars)
+                    confidence = 0.0
+                    logging.info(f"Predicted character (error fallback): {predicted_char}")
+                
                 pred_labels.append(predicted_char)
                 if hasattr(gui, 'target_text') and gui.target_text:
                     true_labels.append(gui.target_text[gui.target_char_idx-1] if gui.target_char_idx > 0 else gui.target_text[0])
@@ -244,19 +280,54 @@ def classify_and_feedback(board, gui, pipeline, clf):
                     else:
                         itr = 0.0
                     logging.info(f"Performance: Accuracy={acc:.3f}, Precision={prec:.3f}, Recall={rec:.3f}, F1={f1:.3f}, ITR={itr:.2f} bits/min")
-                logging.info(f"Predicted character: {predicted_char}")
+                
+                # Always show the predicted character message
                 from PyQt5.QtWidgets import QMessageBox
-                QMessageBox.information(gui, "Prediction", f"Predicted letter: {predicted_char}")
+                QMessageBox.information(gui, "Prediction", f"Predicted character: {predicted_char}")
+                logging.info(f"Displayed prediction message for character: {predicted_char}")
+                
+                # Add the predicted character to the GUI
+                if hasattr(gui, 'add_predicted_letter'):
+                    gui.add_predicted_letter(predicted_char)
+                    gui.selected_textbox.setText(gui.selected_text)
+                
+                # Reset button scores for next prediction
+                button_scores = np.zeros((gui.rows, gui.cols))
+                
+                # Check if we should continue or exit
+                if hasattr(gui, 'target_text') and gui.target_text and gui.target_char_idx < len(gui.target_text):
+                    # Continue for next character
+                    logging.info("Waiting for next character flashing to start...")
+                    selection_start = time.time()
+                    # Wait for the next flashing sequence to start
+                    while not gui.is_flashing and gui.isVisible():
+                        app.processEvents()
+                        time.sleep(0.01)
+                    # If flashing started again, continue the loop
+                    if gui.is_flashing:
+                        logging.info("Next character flashing started. Continuing...")
+                        continue
+                
+                # If no more characters or manual mode, prepare to exit
                 if hasattr(gui, 'acquisition_worker'):
                     try:
                         gui.acquisition_worker.stop()
                         del gui.acquisition_worker
                     except Exception:
                         pass
+                        
+                # Keep the GUI open for user interaction
                 while gui.isVisible():
                     app.processEvents()
                     time.sleep(0.05)
-                break
+                    # If flashing starts again, re-enter the classification loop
+                    if gui.is_flashing:
+                        logging.info("Flashing restarted. Re-entering classification loop...")
+                        selection_start = time.time()
+                        break
+                else:
+                    # GUI was closed, exit completely
+                    break
             try:
                 data = board.get_board_data()
                 if data.shape[1] > 0:

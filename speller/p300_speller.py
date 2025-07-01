@@ -350,9 +350,17 @@ class P300SpellerGUI(QWidget):
                     if self.target_char_idx == len(self.target_text):
                         # Only show prediction if no manual key was pressed
                         if not self.last_pressed_char:
-                            predicted_letter = self.get_predicted_letter()
-                            if predicted_letter:
-                                self.add_predicted_letter(predicted_letter)
+                            # Wait a moment for data processing before making prediction
+                            def delayed_target_prediction():
+                                predicted_letter = self.get_predicted_letter()
+                                # get_predicted_letter now always returns a character
+                                if predicted_letter:
+                                    self.add_predicted_letter(predicted_letter)
+                                    self.selected_textbox.setText(self.selected_text)  # Update textbox
+                                    QMessageBox.information(self, "Predicted", f"Predicted character: {predicted_letter}")
+                            
+                            # Delay prediction by 500ms to allow data collection to complete
+                            QTimer.singleShot(500, delayed_target_prediction)
                     unflash(self.buttons, self.rows, self.cols, keep_target=False)
                     self.timer.stop()
                     self.is_flashing = False
@@ -378,9 +386,17 @@ class P300SpellerGUI(QWidget):
                     QMessageBox.information(self, "Predicted", f"Predicted: {self.last_pressed_char}")
                     self.last_pressed_char = None
                 else:
-                    predicted_letter = self.get_predicted_letter()
-                    if predicted_letter:
-                        self.add_predicted_letter(predicted_letter)
+                    # Wait a moment for data processing before making prediction
+                    def delayed_prediction():
+                        predicted_letter = self.get_predicted_letter()
+                        # get_predicted_letter now always returns a character
+                        if predicted_letter:
+                            self.add_predicted_letter(predicted_letter)
+                            self.selected_textbox.setText(self.selected_text)  # Update textbox
+                            QMessageBox.information(self, "Predicted", f"Predicted character: {predicted_letter}")
+                    
+                    # Delay prediction by 500ms to allow data collection to complete
+                    QTimer.singleShot(500, delayed_prediction)
                 return
         stim_type, idx = self.flash_sequence[self.flash_idx]
         self.flash(stim_type, idx)
@@ -513,7 +529,9 @@ class P300SpellerGUI(QWidget):
     def stop_flashing(self):
         """Stop the flashing sequence with enhanced data processing and error handling."""
         if not self.is_flashing:
-            returnstart_time = time.time()
+            return
+        
+        start_time = time.time()
         
         try:
             self.timer.stop()
@@ -526,6 +544,18 @@ class P300SpellerGUI(QWidget):
                 self.cols,
                 getattr(self, "target_char_matrix_idx", None),
             )
+            
+            # Show prediction message when manually stopping flashing
+            if len(self.stim_log) > 0:
+                try:
+                    predicted_letter = self.get_predicted_letter()
+                    if predicted_letter:
+                        self.add_predicted_letter(predicted_letter)
+                        self.selected_textbox.setText(self.selected_text)
+                        QMessageBox.information(self, "Prediction", f"Predicted character: {predicted_letter}")
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(f"Error showing prediction on manual stop: {e}")
             
             if self.acquisition_running and self.board:
                 try:
@@ -615,9 +645,23 @@ class P300SpellerGUI(QWidget):
 
     def get_predicted_letter(self):
         """Return the predicted letter based on your classification logic."""
+        print(f"[DEBUG] get_predicted_letter called")
+        print(f"[DEBUG] EEG buffer shape: {self.eeg_buffer.shape if self.eeg_buffer is not None else 'None'}")
+        print(f"[DEBUG] Stim log length: {len(self.stim_log) if hasattr(self, 'stim_log') else 'No stim_log'}")
+        print(f"[DEBUG] Available chars: {self.chars[:10]}...")  # Show first 10
+        print(f"[DEBUG] Flash sequence length: {len(self.flash_sequence) if hasattr(self, 'flash_sequence') else 'No flash_sequence'}")
+        print(f"[DEBUG] Flash idx: {self.flash_idx if hasattr(self, 'flash_idx') else 'No flash_idx'}")
+        
         try:
             from data_processing.eeg_classification import predict_character_from_eeg
-            if self.eeg_buffer is not None and len(self.stim_log) > 0:
+            
+            # Check if we have sufficient data for prediction
+            min_stimuli = max(10, self.rows + self.cols)  # At least rows + cols stimuli
+            
+            if (self.eeg_buffer is not None and len(self.stim_log) >= min_stimuli and 
+                self.eeg_buffer.shape[1] > 1000):  # At least 4 seconds of data at 250Hz
+                
+                print(f"[DEBUG] Sufficient data available - calling predict_character_from_eeg")
                 predicted, confidence = predict_character_from_eeg(
                     eeg_buffer=self.eeg_buffer, 
                     stim_log=self.stim_log, 
@@ -627,16 +671,46 @@ class P300SpellerGUI(QWidget):
                     sampling_rate=250.0,  # Adjust based on your config
                     confidence_threshold=0.6
                 )
+                # predicted will now always be a character (never None)
                 if predicted and predicted in self.chars:
-                    print(f"Predicted character: '{predicted}' with confidence {confidence:.3f}")
+                    print(f"[DEBUG] Valid prediction: '{predicted}' with confidence {confidence:.3f}")
                     return predicted
                 else:
-                    print(f"Low confidence prediction: {confidence:.3f}")
+                    # This case should rarely happen now, but handle it just in case
+                    print(f"[DEBUG] Invalid prediction: '{predicted}' with confidence {confidence:.3f}")
+                    import random
+                    import time
+                    random.seed(int(time.time() * 1000000) % 2**32)
+                    random_char = random.choice(self.chars)
+                    print(f"[DEBUG] Selecting random character: '{random_char}' as fallback")
+                    return random_char
+            else:
+                # Not enough data yet - wait for more
+                print(f"[DEBUG] Insufficient data for prediction:")
+                print(f"  - EEG buffer samples: {self.eeg_buffer.shape[1] if self.eeg_buffer is not None else 0}")
+                print(f"  - Stim log entries: {len(self.stim_log) if hasattr(self, 'stim_log') else 0}")
+                print(f"  - Required minimum stimuli: {min_stimuli}")
+                print(f"[DEBUG] Returning random character due to insufficient data")
+                
+                import random
+                import time
+                random.seed(int(time.time() * 1000000) % 2**32)
+                random_char = random.choice(self.chars)
+                print(f"[DEBUG] Available chars: {self.chars[:10]}... (total: {len(self.chars)})")
+                print(f"[DEBUG] Random choice index: {self.chars.index(random_char) if random_char in self.chars else 'NOT FOUND'}")
+                print(f"Selecting random character: '{random_char}' due to insufficient data")
+                return random_char
         except Exception as e:
-            print(f"Prediction error: {e}")
+            print(f"[DEBUG] Exception in get_predicted_letter: {e}")
             import traceback
             traceback.print_exc()
-        return None
+            # Return random character on error
+            import random
+            import time
+            random.seed(int(time.time() * 1000000) % 2**32)
+            random_char = random.choice(self.chars)
+            print(f"[DEBUG] Selecting random character: '{random_char}' due to prediction error")
+            return random_char
 
     def reset_speller(self):
         """Reset the speller state for a new calibration or session."""

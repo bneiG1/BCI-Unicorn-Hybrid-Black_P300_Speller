@@ -24,7 +24,16 @@ A real-time P300 Speller BCI system for the Unicorn Hybrid Black EEG device. Ena
   # Or install manually as needed
   ```
 
+
+- To run the application, simply run:
+  ```pwsh
+  python run.py
+  # or
+  python -m speller.realtime_bci
+  ```
 ---
+
+
 
 ## High-Level System Diagram
 

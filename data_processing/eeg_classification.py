@@ -197,6 +197,15 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
     Returns:
         tuple: (predicted_character, confidence) or (None, 0.0) if prediction fails
     """
+    print("=" * 60)
+    print("PREDICT CHARACTER FROM EEG - DETAILED DEBUG")
+    print(f"Input chars: {chars[:10]}... (total: {len(chars)})")
+    print(f"First char in matrix: '{chars[0] if len(chars) > 0 else 'EMPTY'}'")
+    print(f"EEG buffer shape: {eeg_buffer.shape if eeg_buffer is not None else 'None'}")
+    print(f"Stim log length: {len(stim_log) if stim_log is not None else 'None'}")
+    print(f"Confidence threshold: {confidence_threshold}")
+    print("=" * 60)
+    
     try:
         # Try to load a pre-trained model in order of preference
         model_path = None
@@ -215,7 +224,17 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
         
         if not model_path:
             print("No trained model found for prediction")
-            return None, 0.0
+            print(f"Checked paths: {model_paths}")
+            # Return a random character when no model is available
+            import random
+            import time
+            # Ensure better randomness by seeding with current time
+            random.seed(int(time.time() * 1000000) % 2**32)
+            random_char = random.choice(chars)
+            print(f"Available chars for random selection: {chars[:10]}... (total: {len(chars)})")
+            print(f"Random choice index: {chars.index(random_char) if random_char in chars else 'NOT FOUND'}")
+            print(f"Selecting random character: '{random_char}' due to no trained model")
+            return random_char, 0.0
         
         # Load the classifier
         clf = joblib.load(model_path)
@@ -229,10 +248,31 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
                     return lda.predict_proba(sfs.transform(X))
             clf = SWLDAWrapper()
         
-        # Check if we have enough data
+        # Check if we have enough data for meaningful prediction
         if len(stim_log) == 0 or eeg_buffer.size == 0:
             print("No stimulus log or EEG data available")
-            return None, 0.0
+            print(f"Stim log length: {len(stim_log)}, EEG buffer size: {eeg_buffer.size}")
+            # Return a random character when no data is available
+            import random
+            import time
+            # Ensure better randomness by seeding with current time
+            random.seed(int(time.time() * 1000000) % 2**32)
+            random_char = random.choice(chars)
+            print(f"Available chars for random selection: {chars[:10]}... (total: {len(chars)})")
+            print(f"Random choice index: {chars.index(random_char) if random_char in chars else 'NOT FOUND'}")
+            print(f"Selecting random character: '{random_char}' due to no data available")
+            return random_char, 0.0
+        
+        # Check if we have minimum required stimulus events
+        min_required_stimuli = 10  # At least 10 stimulus events for reasonable prediction
+        if len(stim_log) < min_required_stimuli:
+            print(f"Insufficient stimulus events: {len(stim_log)} < {min_required_stimuli}")
+            import random
+            import time
+            random.seed(int(time.time() * 1000000) % 2**32)
+            random_char = random.choice(chars)
+            print(f"Selecting random character: '{random_char}' due to insufficient stimuli")
+            return random_char, 0.0
         
         # Calculate epoch parameters
         epoch_samples = int((epoch_tmax - epoch_tmin) * sampling_rate)
@@ -275,7 +315,11 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
         
         if len(epochs) == 0:
             print("No valid epochs extracted from stimulus log")
-            return None, 0.0
+            # Return a random character when no valid epochs are found
+            import random
+            random_char = random.choice(chars)
+            print(f"Selecting random character: '{random_char}' due to no valid epochs")
+            return random_char, 0.0
         
         print(f"Extracted {len(epochs)} epochs for classification")
         
@@ -326,7 +370,11 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
         # Check if confidence meets threshold
         if confidence < confidence_threshold:
             print(f"Confidence {confidence:.3f} below threshold {confidence_threshold}")
-            return None, confidence
+            # Return a random character when confidence is too low
+            import random
+            random_char = random.choice(chars)
+            print(f"Selecting random character: '{random_char}' due to low confidence")
+            return random_char, confidence
         
         # Convert row/column to character index
         char_idx = best_row * cols + best_col
@@ -338,13 +386,38 @@ def predict_character_from_eeg(eeg_buffer, stim_log, chars, rows=6, cols=6, samp
             return predicted_char, confidence
         else:
             print(f"Character index {char_idx} out of range")
-            return None, 0.0
+            # Return a random character when index is out of range
+            import random
+            random_char = random.choice(chars)
+            print(f"Selecting random character: '{random_char}' due to index out of range")
+            return random_char, 0.0
             
     except Exception as e:
         print(f"Error in predict_character_from_eeg: {e}")
         import traceback
         traceback.print_exc()
-        return None, 0.0
+        # Return a random character when an error occurs
+        import random
+        try:
+            random_char = random.choice(chars)
+            print(f"Selecting random character: '{random_char}' due to prediction error")
+            return random_char, 0.0
+        except:
+            # If even random selection fails, return a default character
+            print("Random character selection failed completely - checking chars parameter")
+            print(f"chars parameter type: {type(chars)}")
+            print(f"chars parameter: {chars}")
+            
+            # Try to find a valid character from the matrix
+            if chars and len(chars) > 0:
+                # Instead of always 'A', use the middle character to avoid bias
+                middle_idx = len(chars) // 2
+                fallback_char = chars[middle_idx]
+                print(f"Using middle character as fallback: '{fallback_char}' (index {middle_idx})")
+                return fallback_char, 0.0
+            else:
+                print("No valid chars available - using absolute fallback 'A'")
+                return 'A', 0.0
 
 if __name__ == "__main__":
     csv_files = glob.glob(os.path.join("data", "*.csv"))

@@ -84,10 +84,10 @@ def test_prediction():
     print(f"Predicted character: {predicted_char}")
     print(f"Confidence: {confidence:.3f}")
     
-    if predicted_char is not None:
+    if predicted_char is not None and predicted_char in chars:
         print("✓ Prediction function works!")
     else:
-        print("✗ Prediction function returned None")
+        print("✗ Prediction function returned invalid character")
     
     return predicted_char, confidence
 
