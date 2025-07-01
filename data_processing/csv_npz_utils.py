@@ -38,7 +38,10 @@ def convert_csv_to_npz(csv_path, npz_path=None, sampling_rate=256):
         if end_idx < len(markers):
             epoch = eeg_data[:, start_idx:end_idx]  # shape: (n_channels, epoch_samples)
             epochs.append(epoch)
-            labels.append(int(markers[event_idx]))  # Use marker value as label
+            # Convert marker values: 1->0 (non-target), 2->1 (target)
+            marker_val = int(markers[event_idx])
+            label = 1 if marker_val == 2 else 0
+            labels.append(label)
     
     if len(epochs) == 0:
         # If no events found, create a single epoch from all data

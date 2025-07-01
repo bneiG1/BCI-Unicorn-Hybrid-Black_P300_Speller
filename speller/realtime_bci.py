@@ -6,6 +6,7 @@ import numpy as np
 import os
 import math
 import joblib
+import random
 from PyQt5.QtWidgets import QApplication
 
 from acquisition.unicorn_connect import start_streaming, stop_streaming, release_resources
@@ -244,8 +245,6 @@ def classify_and_feedback(board, gui, pipeline, clf):
                     else:
                         # Fallback: select random character instead of using button scores
                         logging.info("No buffer data or stimulus log - selecting random character")
-                        import random
-                        import time
                         # Ensure better randomness by seeding with current time
                         random.seed(int(time.time() * 1000000) % 2**32)
                         available_chars = [btn.text() for row in gui.buttons for btn in row]
@@ -255,8 +254,6 @@ def classify_and_feedback(board, gui, pipeline, clf):
                 except Exception as e:
                     logging.error(f"Error in character prediction: {e}")
                     # Final fallback: random character instead of button scores
-                    import random
-                    import time
                     # Ensure better randomness by seeding with current time
                     random.seed(int(time.time() * 1000000) % 2**32)
                     available_chars = [btn.text() for row in gui.buttons for btn in row]
